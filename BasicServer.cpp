@@ -68,6 +68,7 @@ constexpr const char* def_url = "http://localhost:34568";
 
 const string create_table {"CreateTable"};
 const string delete_table {"DeleteTable"};
+
 const string update_entity {"UpdateEntity"};
 const string delete_entity {"DeleteEntity"};
 
@@ -126,19 +127,19 @@ unordered_map<string,string> get_json_body(http_request message) {
   value json{};
   message.extract_json(true)
     .then([&json](value v) -> bool
-	  {
+    {
             json = v;
-	    return true;
-	  })
+      return true;
+    })
     .wait();
 
   if (json.is_object()) {
     for (const auto& v : json.as_object()) {
       if (v.second.is_string()) {
-	results[v.first] = v.second.as_string();
+  results[v.first] = v.second.as_string();
       }
       else {
-	results[v.first] = v.second.serialize();
+  results[v.first] = v.second.serialize();
       }
     }
   }
@@ -155,17 +156,95 @@ void handle_get(http_request message) {
   string path {uri::decode(message.relative_uri().path())};
   cout << endl << "**** GET " << path << endl;
   auto paths = uri::split_path(path);
+
+  unordered_map<string,string> json_body = get_json_body(message);
+
   // Need at least a table name
   if (paths.size() < 1) {
+    cout << "Missing table name" << endl;
     message.reply(status_codes::BadRequest);
     return;
   }
 
+
   cloud_table table {table_cache.lookup_table(paths[0])};
   if ( ! table.exists()) {
+    cout << "Table does not exist" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
+
+
+  /*
+    Code for Operation 1
+  */
+  // If no Json body in request and size of paths is 2 (contains table name and either partition name or row name)
+  // Return Bad Request because a parameter is missing
+  if ( json_body.size() == 0  && paths.size() == 2) {
+    cout << "Missing parameters in request" << endl;
+    message.reply(status_codes::BadRequest);
+    return;
+  }
+
+
+  /*
+    Code for Operation 2
+  */
+  // Get entities containing properties specific to the ones in the body
+  // Size of paths for this request is 2 but there is a body
+  // Difference in body is what makes it go from a BadRequest to an OK one
+  if (json_body.size() > 0) {
+    table_query query {};
+    table_query_iterator end;
+    table_query_iterator it = table.execute_query(query);
+    vector<value> key_vec;
+    vector<string> found_properties;
+
+    // Push properties from json body of request into a vector called found_properties
+    for(auto it_json = json_body.begin(); it_json != json_body.end(); ++it_json){
+      found_properties.push_back(it_json->first);
+    }
+
+    // COUT to see what properties were pushed into found_properties
+    for (int i = 0; i<found_properties.size(); i++) {
+      cout << "**TEST found_properties : " << found_properties[i] << endl;
+    }
+
+    // Something to push onto a return of same properties
+    // Need to do this if
+    //Jason attempt
+    int flag = 0; //If flag = 0, properties does not match
+    while(it != end) { // Goes through all partitions
+      cout << "GET: " << it->partition_key() << " / " << it->row_key() << endl; 
+      prop_vals_t keys { make_pair("Partition",value::string(it->partition_key())), make_pair("Row", value::string(it->row_key())) }; //saves partition
+      keys = get_properties(it->properties(), keys);
+      //JM: Here we compare gotten properties with the ones we need, so all of found_properties is inside keys. Running while of i = 0, i < found_properties.size()
+        
+      int i = 0;
+      int j = 0;
+      for(i = 0;i < found_properties.size();i++) {
+        for(j = 0;j < keys.size();j++) {
+          if(found_properties[i] == std::get<0>(keys[j])) {
+            flag++;
+            break;
+          }
+        }
+      }   
+      
+      if(flag == found_properties.size()) { //If correct number of properties found, save our partition into key_vec
+        key_vec.push_back(value::object(keys)); 
+      }
+      
+      flag = 0; //Reset flag for next partition
+      ++it;
+    }
+  
+    cout << "**TESTING key_vec_size() = " << key_vec.size() << endl;
+    cout << "Returning from operation 2" << endl;
+    message.reply(status_codes::OK, value::array(key_vec));
+    return;
+  }
+
 
   // GET all entries in table
   if (paths.size() == 1) {
@@ -175,22 +254,47 @@ void handle_get(http_request message) {
     vector<value> key_vec;
     while (it != end) {
       cout << "Key: " << it->partition_key() << " / " << it->row_key() << endl;
-      prop_vals_t keys {
-	make_pair("Partition",value::string(it->partition_key())),
-	make_pair("Row", value::string(it->row_key()))};
+      prop_vals_t keys { make_pair("Partition",value::string(it->partition_key())), make_pair("Row", value::string(it->row_key())) };
       keys = get_properties(it->properties(), keys);
       key_vec.push_back(value::object(keys));
       ++it;
     }
+    cout << "Returning from 'get all entities'" << endl;
     message.reply(status_codes::OK, value::array(key_vec));
     return;
   }
+  
 
+  /*
+    Code for Operation 1
+  */
+  // GET all entities from a specific partition
+  if( paths[2] == "*" ) {
+      table_query query {};
+      table_query_iterator end;
+      table_query_iterator it = table.execute_query(query);
+      vector<value> key_vec;
+      prop_vals_t keys;
+      while(it != end) {
+        if( paths[1] == it->partition_key() ) {
+          cout << "GET: " << it->partition_key() << " / " << it->row_key() << endl; 
+          keys = { make_pair("Partition",value::string(it->partition_key())), make_pair("Row",value::string(it->row_key())) };
+          keys = get_properties(it->properties(), keys);
+          key_vec.push_back(value::object(keys));
+        }
+        ++it;
+      }
+      cout << "Return from operaetion 1" << endl;
+      message.reply(status_codes::OK, value::array(key_vec));
+      return;
+  }
+  
   // GET specific entry: Partition == paths[1], Row == paths[2]
   table_operation retrieve_operation {table_operation::retrieve_entity(paths[1], paths[2])};
   table_result retrieve_result {table.execute(retrieve_operation)};
   cout << "HTTP code: " << retrieve_result.http_status_code() << endl;
   if (retrieve_result.http_status_code() == status_codes::NotFound) {
+    cout << "Not sure what to type here for a return statment" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
@@ -274,6 +378,7 @@ void handle_put(http_request message) {
   else {
     message.reply(status_codes::BadRequest);
   }
+
 }
 
 /*
@@ -285,8 +390,8 @@ void handle_delete(http_request message) {
   auto paths = uri::split_path(path);
   // Need at least an operation and table name
   if (paths.size() < 2) {
-	message.reply(status_codes::BadRequest);
-	return;
+    message.reply(status_codes::BadRequest);
+    return;
   }
 
   string table_name {paths[1]};
@@ -306,8 +411,8 @@ void handle_delete(http_request message) {
   else if (paths[0] == delete_entity) {
     // For delete entity, also need partition and row
     if (paths.size() < 4) {
-	message.reply(status_codes::BadRequest);
-	return;
+  message.reply(status_codes::BadRequest);
+  return;
     }
     table_entity entity {paths[2], paths[3]};
     cout << "Delete " << entity.partition_key() << " / " << entity.row_key()<< endl;
@@ -317,7 +422,7 @@ void handle_delete(http_request message) {
 
     int code {op_result.http_status_code()};
     if (code == status_codes::OK || 
-	code == status_codes::NoContent)
+  code == status_codes::NoContent)
       message.reply(status_codes::OK);
     else
       message.reply(code);
@@ -351,3 +456,4 @@ int main (int argc, char const * argv[]) {
   listener.close().wait();
   cout << "Closed" << endl;
 }
+
