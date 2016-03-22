@@ -198,7 +198,6 @@ void handle_get(http_request message) {
       Size of paths is 2
     */
     if (paths.size() == 2 && json_body.size() > 0) {
-      cout << "Size of paths: " << paths.size() << endl;
       table_query query {};
       table_query_iterator end;
       table_query_iterator it = table.execute_query(query);
@@ -236,6 +235,14 @@ void handle_get(http_request message) {
         flag = 0;
         ++it;
       }
+
+      // If key_vec is empty then nothing was found; return NotFound and an empty body
+      if (key_vec.size() == 0) {
+        message.reply(status_codes::NotFound, value::array(key_vec));
+        return;
+      }
+
+      // If key_vec is not empty then something was found; return OK with entities in a body
       message.reply(status_codes::OK, value::array(key_vec));
       return;
     }
@@ -253,7 +260,6 @@ void handle_get(http_request message) {
         key_vec.push_back(value::object(keys));
         ++it;
       }
-      cout << "Returning from 'get all entities'" << endl;
       message.reply(status_codes::OK, value::array(key_vec));
       return;
     }
@@ -289,7 +295,14 @@ void handle_get(http_request message) {
           }
           ++it;
         }
-        cout << "Return from operaetion 1" << endl;
+
+        // If key_vec is empty then nothing was found; return NotFound and an empty body
+        if (key_vec.size() == 0) {
+          message.reply(status_codes::NotFound, value::array(key_vec));
+          return;
+        }
+
+        // If key_vec is not empty then something was found; return OK with entities in a body
         message.reply(status_codes::OK, value::array(key_vec));
         return;
     }
@@ -298,7 +311,6 @@ void handle_get(http_request message) {
     table_result retrieve_result {table.execute(retrieve_operation)};
     cout << "HTTP code: " << retrieve_result.http_status_code() << endl;
     if (retrieve_result.http_status_code() == status_codes::NotFound) {
-      cout << "Not sure what to type here for a return statment" << endl;
       message.reply(status_codes::NotFound);
       return;
     }

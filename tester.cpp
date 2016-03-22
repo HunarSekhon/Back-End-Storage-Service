@@ -627,7 +627,7 @@ SUITE(GET) {
         + "fAkEpArTiOn" + "/"
         + "*")};
 
-    CHECK_EQUAL(status_codes::OK, result.first);
+    CHECK_EQUAL(status_codes::NotFound, result.first);
     CHECK_EQUAL(0, result.second.as_array().size());
   }
 
@@ -993,6 +993,7 @@ SUITE(GET) {
       + string(GetFixture::table),value::object (json_body))}; 
 
     cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(status_codes::NotFound, result.first);
     CHECK_EQUAL(0,result.second.size());
     CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
     CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition2, row2));
