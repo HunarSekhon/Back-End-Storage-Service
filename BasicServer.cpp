@@ -325,15 +325,21 @@ void handle_get(http_request message) {
     
     // If the entity has any properties, return them as JSON
     prop_vals_t values (get_properties(properties));
-    if (values.size() > 0)
+    if (values.size() > 0) {
       message.reply(status_codes::OK, value::object(values));
-    else
+      return;
+    }
+    else {
       message.reply(status_codes::OK);
+      return;
+    }
   }
   
   // Return BadRequest if GET operation does not match
-  message.reply(status_codes::BadRequest);
-  return;
+  else { 
+    message.reply(status_codes::BadRequest);
+    return;
+  }
 }
 
 /*
