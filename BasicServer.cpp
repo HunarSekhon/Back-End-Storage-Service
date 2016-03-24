@@ -25,6 +25,8 @@
 
 #include "azure_keys.h"
 
+#include "ServerUtils.h"
+
 using azure::storage::cloud_storage_account;
 using azure::storage::storage_credentials;
 using azure::storage::storage_exception;
