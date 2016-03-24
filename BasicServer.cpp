@@ -69,9 +69,11 @@ const string create_table {"CreateTableAdmin"};
 const string delete_table {"DeleteTableAdmin"};
 
 const string read_entity {"ReadEntityAdmin"};
-
 const string update_entity {"UpdateEntityAdmin"};
 const string delete_entity {"DeleteEntityAdmin"};
+
+const string read_entity_auth {"ReadEntityAuth"};
+const string update_entity_auth {"UpdateEntityAuth"};
 
 /*
   Cache of opened tables
@@ -173,6 +175,7 @@ void handle_get(http_request message) {
   cout << endl << "**** GET " << path << endl;
   auto paths = uri::split_path(path);
 
+  // If command was ReadEntityAdmin
   if (paths[0] == read_entity) {
     
     unordered_map<string,string> json_body {get_json_body (message)};
@@ -325,7 +328,7 @@ void handle_get(http_request message) {
     else
       message.reply(status_codes::OK);
   }
-
+  
   // Return BadRequest if GET operation does not match
   message.reply(status_codes::BadRequest);
   return;
