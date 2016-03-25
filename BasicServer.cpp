@@ -70,9 +70,9 @@ constexpr const char* def_url = "http://localhost:34568";
 const string create_table {"CreateTableAdmin"};
 const string delete_table {"DeleteTableAdmin"};
 
-const string read_entity {"ReadEntityAdmin"};
-const string update_entity {"UpdateEntityAdmin"};
-const string delete_entity {"DeleteEntityAdmin"};
+const string read_entity_admin {"ReadEntityAdmin"};
+const string update_entity_admin {"UpdateEntityAdmin"};
+const string delete_entity_admin {"DeleteEntityAdmin"};
 
 const string read_entity_auth {"ReadEntityAuth"};
 const string update_entity_auth {"UpdateEntityAuth"};
@@ -178,7 +178,7 @@ void handle_get(http_request message) {
   auto paths = uri::split_path(path);
 
   // If command was ReadEntityAdmin
-  if (paths[0] == read_entity) {
+  if (paths[0] == read_entity_admin) {
     
     unordered_map<string,string> json_body {get_json_body (message)};
 
@@ -398,7 +398,7 @@ void handle_put(http_request message) {
 
   // Update entity
   try {
-    if (paths[0] == update_entity) {
+    if (paths[0] == update_entity_admin) {
       cout << "Update " << entity.partition_key() << " / " << entity.row_key() << endl;
       table_entity::properties_type& properties = entity.properties();
       for (const auto v : json_body) {
@@ -448,7 +448,7 @@ void handle_delete(http_request message) {
     message.reply(status_codes::OK);
   }
   // Delete entity
-  else if (paths[0] == delete_entity) {
+  else if (paths[0] == delete_entity_admin) {
     // For delete entity, also need partition and row
     if (paths.size() < 4) {
   message.reply(status_codes::BadRequest);
