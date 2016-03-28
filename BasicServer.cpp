@@ -78,6 +78,10 @@ const string delete_entity_admin {"DeleteEntityAdmin"};
 const string read_entity_auth {"ReadEntityAuth"};
 const string update_entity_auth {"UpdateEntityAuth"};
 
+const string get_read_token_op  {"GetReadToken"};
+const string get_update_token_op {"GetUpdateToken"};
+
+
 /*
   Cache of opened tables
  */
@@ -468,6 +472,20 @@ void handle_put(http_request message) {
     cout << "Azure Table Storage error: " << e.what() << endl;
     message.reply(status_codes::InternalError);
   }
+
+
+  /*
+    Coded for Assign2 Operation 2
+    
+    Check if command is for auth access
+    Uses Teds code in ServerUtils to update
+    Return
+  */
+  // If command was UpdateEntityAuth
+  if (paths[0] == update_entity_auth) {
+    message.reply(update_with_token(message, tables_endpoint, json_body));
+    return;
+  }  
 }
 
 /*
