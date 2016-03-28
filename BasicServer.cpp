@@ -56,6 +56,7 @@ using std::vector;
 using web::http::http_headers;
 using web::http::http_request;
 using web::http::methods;
+using web::http::status_code;
 using web::http::status_codes;
 using web::http::uri;
 
@@ -335,6 +336,54 @@ void handle_get(http_request message) {
     }
   }
   
+
+  /*
+    Code for Assign2 Operation 1
+  */
+  // If command was ReadEntityAuth
+  if (paths[0] == read_entity_auth) {
+
+    // Need 5 Parameters to read an entity (Command, Table Name, Token, Partition, Row)
+    if (paths.size() != 5) {
+      message.reply(status_codes::BadRequest);
+      return;
+    }
+
+    // Check if table exists
+    cloud_table table {table_cache.lookup_table(paths[1])};
+    if ( ! table.exists()) {
+      cout << "Table does not exist" << endl;
+      message.reply(status_codes::NotFound);
+      return;
+    }
+
+    // Use function Ted made in ServerUtils.cpp
+    pair<status_code,table_entity> result {read_with_token(message, tables_endpoint)};
+    
+    // read_with_token only returns OK as status_code if an entity was found with the given partition and row name
+    if (result.first == status_codes::OK) {
+      
+      table_entity::properties_type properties {result.second.properties()};
+
+      // If the entity has any properties, return them as JSON
+      prop_vals_t values (get_properties(properties));
+      if (values.size() > 0) {
+        message.reply(result.first, value::object(values));
+        return;
+      }
+      else {
+        message.reply(result.first);
+        return;
+      }
+    }
+
+    else {
+      message.reply(result.first);
+      return;
+    }
+  }
+
+
   // Return BadRequest if GET operation does not match
   else { 
     message.reply(status_codes::BadRequest);
