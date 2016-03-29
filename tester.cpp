@@ -2,6 +2,7 @@
   Sample unit tests for BasicServer
  */
 
+#include <algorithm>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -34,7 +35,25 @@ using web::http::uri_builder;
 
 using web::http::client::http_client;
 
+using web::json::object;
 using web::json::value;
+
+const string create_table_op {"CreateTableAdmin"};
+const string delete_table_op {"DeleteTableAdmin"};
+
+const string read_entity_admin {"ReadEntityAdmin"};
+const string update_entity_admin {"UpdateEntityAdmin"};
+const string delete_entity_admin {"DeleteEntityAdmin"};
+
+const string read_entity_auth {"ReadEntityAuth"};
+const string update_entity_auth {"UpdateEntityAuth"};
+
+const string get_read_token_op  {"GetReadToken"};
+const string get_update_token_op {"GetUpdateToken"};
+
+// The two optional operations from Assignment 1
+const string add_property_admin {"AddPropertyAdmin"};
+const string update_property_admin {"UpdatePropertyAdmin"};
 
 /*
   Make an HTTP request, returning the status code and any JSON value in the body
@@ -67,21 +86,21 @@ pair<status_code,value> do_request (const method& http_method, const string& uri
   http_client client {uri_string};
   client.request (request)
     .then([&code](http_response response)
-	  {
-	    code = response.status_code();
-	    const http_headers& headers {response.headers()};
-	    auto content_type (headers.find("Content-Type"));
-	    if (content_type == headers.end() ||
-		content_type->second != "application/json")
-	      return pplx::task<value> ([] { return value {};});
-	    else
-	      return response.extract_json();
-	  })
-    .then([&resp_body](value v) -> void
-	  {
-	    resp_body = v;
-	    return;
-	  })
+    {
+      code = response.status_code();
+      const http_headers& headers {response.headers()};
+      auto content_type (headers.find("Content-Type"));
+      if (content_type == headers.end() ||
+          content_type->second != "application/json")
+        return pplx::task<value> ([] { return value {};});
+      else
+        return response.extract_json();
+    })
+.then([&resp_body](value v) -> void
+    {
+      resp_body = v;
+      return;
+    })
     .wait();
   return make_pair(code, resp_body);
 }
@@ -98,8 +117,135 @@ pair<status_code,value> do_request (const method& http_method, const string& uri
   table: Table in which to insert the entity
  */
 int create_table (const string& addr, const string& table) {
-  pair<status_code,value> result {do_request (methods::POST, addr + "CreateTable/" + table)};
+  pair<status_code,value> result {do_request (methods::POST, addr + create_table_op + "/" + table)};
   return result.first;
+}
+
+/*
+  Utility to compare two JSON objects
+
+  This is an internal routine---you probably want to call compare_json_values().
+ */
+bool compare_json_objects (const object& expected_o, const object& actual_o) {
+  CHECK_EQUAL (expected_o.size (), actual_o.size());
+  if (expected_o.size() != actual_o.size())
+    return false;
+
+  bool result {true};
+  for (auto& exp_prop : expected_o) {
+    object::const_iterator act_prop {actual_o.find (exp_prop.first)};
+    CHECK (actual_o.end () != act_prop);
+    if (actual_o.end () == act_prop)
+      result = false;
+    else {
+      CHECK_EQUAL (exp_prop.second, act_prop->second);
+      if (exp_prop.second != act_prop->second)
+        result = false;
+    }
+  }
+  return result;
+}
+
+/*
+  Utility to compare two JSON objects represented as values
+
+  expected: json::value that was expected---must be an object
+  actual: json::value that was actually returned---must be an object
+*/
+bool compare_json_values (const value& expected, const value& actual) {
+  assert (expected.is_object());
+  assert (actual.is_object());
+
+  object expected_o {expected.as_object()};
+  object actual_o {actual.as_object()};
+  return compare_json_objects (expected_o, actual_o);
+}
+
+/*
+  Utility to compre expected JSON array with actual
+
+  exp: vector of objects, sorted by Partition/Row property 
+    The routine will throw if exp is not sorted.
+  actual: JSON array value of JSON objects
+    The routine will throw if actual is not an array or if
+    one or more values is not an object.
+
+  Note the deliberate asymmetry of the how the two arguments are handled:
+
+  exp is set up by the test, so we *require* it to be of the correct
+  type (vector<object>) and to be sorted and throw if it is not.
+
+  actual is returned by the database and may not be an array, may not
+  be values, and may not be sorted by partition/row, so we have
+  to check whether it has those characteristics and convert it 
+  to a type comparable to exp.
+*/
+bool compare_json_arrays(const vector<object>& exp, const value& actual) {
+  /*
+    Check that expected argument really is sorted and
+    that every value has Partion and Row properties.
+    This is a precondition of this routine, so we throw
+    if it is not met.
+  */
+  auto comp = [] (const object& a, const object& b) -> bool {
+  return a.at("Partition").as_string()  <  b.at("Partition").as_string()
+         ||
+         (a.at("Partition").as_string() == b.at("Partition").as_string() &&
+          a.at("Row").as_string()       <  b.at("Row").as_string());  
+  };
+  if ( ! std::is_sorted(exp.begin(),
+                         exp.end(),
+                         comp))
+    throw std::exception();
+
+  // Check that actual is an array
+  CHECK(actual.is_array());
+  if ( ! actual.is_array())
+    return false;
+  web::json::array act_arr {actual.as_array()};
+
+  // Check that the two arrays have same size
+  CHECK_EQUAL(exp.size(), act_arr.size());
+  if (exp.size() != act_arr.size())
+    return false;
+
+  // Check that all values in actual are objects
+  bool all_objs {std::all_of(act_arr.begin(),
+                             act_arr.end(),
+                             [] (const value& v) { return v.is_object(); })};
+  CHECK(all_objs);
+  if ( ! all_objs)
+    return false;
+
+  // Convert all values in actual to objects
+  vector<object> act_o {};
+  auto make_object = [] (const value& v) -> object {
+    return v.as_object();
+  };
+  std::transform (act_arr.begin(), act_arr.end(), std::back_inserter(act_o), make_object);
+
+  /* 
+     Ensure that the actual argument is sorted.
+     Unlike exp, we cannot assume this argument is sorted,
+     so we sort it.
+   */
+  std::sort(act_o.begin(), act_o.end(), comp);
+
+  // Compare the sorted arrays
+  bool eq {std::equal(exp.begin(), exp.end(), act_o.begin(), &compare_json_objects)};
+  CHECK (eq);
+  return eq;
+}
+
+/*
+  Utility to create JSON object value from vector of properties
+*/
+value build_json_object (const vector<pair<string,string>>& properties) {
+    value result {value::object ()};
+    for (auto& prop : properties) {
+      result[prop.first] = value::string(prop.second);
+    }
+    return result;
 }
 
 /*
@@ -112,7 +258,7 @@ int delete_table (const string& addr, const string& table) {
   // SIGH--Note that REST SDK uses "methods::DEL", not "methods::DELETE"
   pair<status_code,value> result {
     do_request (methods::DEL,
-		addr + "DeleteTable/" + table)};
+    addr + delete_table_op + "/" + table)};
   return result.first;
 }
 
@@ -129,9 +275,31 @@ int delete_table (const string& addr, const string& table) {
 int put_entity(const string& addr, const string& table, const string& partition, const string& row, const string& prop, const string& pstring) {
   pair<status_code,value> result {
     do_request (methods::PUT,
-		addr + "UpdateEntity/" + table + "/" + partition + "/" + row,
-		value::object (vector<pair<string,value>>
-			       {make_pair(prop, value::string(pstring))}))};
+    addr + update_entity_admin + "/" + table + "/" + partition + "/" + row,
+    value::object (vector<pair<string,value>>
+                   {make_pair(prop, value::string(pstring))}))};
+  return result.first;
+}
+
+/*
+  Utility to put an entity with multiple properties
+
+  addr: Prefix of the URI (protocol, address, and port)
+  table: Table in which to insert the entity
+  partition: Partition of the entity 
+  row: Row of the entity
+  props: vector of string/value pairs representing the properties
+
+  Note: This was from Ted's repo but I changed UpdateEntity to UpdateEntityAdmin since it wants UpdateEntityAdmin in BasicServer.cpp
+        I never tested this without changing it though, I just made the assumption that this change was needed
+        -Trevor
+ */
+int put_entity(const string& addr, const string& table, const string& partition, const string& row,
+              const vector<pair<string,value>>& props) {
+  pair<status_code,value> result {
+    do_request (methods::PUT,
+               addr + "UpdateEntityAdmin/" + table + "/" + partition + "/" + row,
+               value::object (props))};
   return result.first;
 }
 
@@ -147,8 +315,29 @@ int delete_entity (const string& addr, const string& table, const string& partit
   // SIGH--Note that REST SDK uses "methods::DEL", not "methods::DELETE"
   pair<status_code,value> result {
     do_request (methods::DEL,
-		addr + "DeleteEntity/" + table + "/" + partition + "/" + row)};
+    addr + delete_entity_admin + "/" + table + "/" + partition + "/" + row)};
   return result.first;
+}
+
+/*
+  Utility to get a token good for updating a specific entry
+  from a specific table for one day.
+ */
+pair<status_code,string> get_update_token(const string& addr,  const string& userid, const string& password) {
+  value pwd {build_json_object (vector<pair<string,string>> {make_pair("Password", password)})};
+  pair<status_code,value> result {do_request (methods::GET,
+                                              addr +
+                                              get_update_token_op + "/" +
+                                              userid,
+                                              pwd
+                                              )};
+  cerr << "token " << result.second << endl;
+  if (result.first != status_codes::OK)
+    return make_pair (result.first, "");
+  else {
+    string token {result.second["token"].as_string()};
+    return make_pair (result.first, token);
+  }
 }
 
 /*
@@ -160,104 +349,763 @@ int delete_entity (const string& addr, const string& table, const string& partit
   but the table is left. See the comments in the code
   for the reason for this design.
  */
-SUITE(GET) {
-  class GetFixture {
-  public:
-    static constexpr const char* addr {"http://127.0.0.1:34568/"};
-    static constexpr const char* table {"TestTable"};
-    static constexpr const char* partition {"Franklin,Aretha"};
-    static constexpr const char* row {"USA"};
-    static constexpr const char* property {"Song"};
-    static constexpr const char* prop_val {"RESPECT"};
+class GetFixture {
+public:
+  static constexpr const char* addr {"http://127.0.0.1:34568/"};
+  static constexpr const char* table {"TestTable"};
+  static constexpr const char* partition {"Franklin,Aretha"};
+  static constexpr const char* row {"USA"};
+  static constexpr const char* property {"Song"};
+  static constexpr const char* prop_val {"RESPECT"};
 
-  public:
-    GetFixture() {
-      int make_result {create_table(addr, table)};
-      cerr << "create result " << make_result << endl;
-      if (make_result != status_codes::Created && make_result != status_codes::Accepted) {
-	throw std::exception();
-      }
-      int put_result {put_entity (addr, table, partition, row, property, prop_val)};
-      cerr << "put result " << put_result << endl;
-      if (put_result != status_codes::OK) {
-	throw std::exception();
-      }
+public:
+  GetFixture() {
+    int make_result {create_table(addr, table)};
+    cerr << "create result " << make_result << endl;
+    if (make_result != status_codes::Created && make_result != status_codes::Accepted) {
+throw std::exception();
     }
-    ~GetFixture() {
-      int del_ent_result {delete_entity (addr, table, partition, row)};
-      if (del_ent_result != status_codes::OK) {
-	throw std::exception();
-      }
+    int put_result {put_entity (addr, table, partition, row, property, prop_val)};
+    cerr << "put result " << put_result << endl;
+    if (put_result != status_codes::OK) {
+throw std::exception();
+    }
+  }
+  ~GetFixture() {
+    int del_ent_result {delete_entity (addr, table, partition, row)};
+    if (del_ent_result != status_codes::OK) {
+throw std::exception();
+    }
 
-      /*
-	In traditional unit testing, we might delete the table after every test.
+    /*
+In traditional unit testing, we might delete the table after every test.
 
-	However, in cloud NoSQL environments (Azure Tables, Amazon DynamoDB)
-	creating and deleting tables are rate-limited operations. So we
-	leave the table after each test but delete all its entities.
-       */
-      cout << "Skipping table delete" << endl;
-      /*
+However, in cloud NoSQL environments (Azure Tables, Amazon DynamoDB)
+creating and deleting tables are rate-limited operations. So we
+leave the table after each test but delete all its entities.
+     */
+    cout << "Skipping table delete" << endl;
+    /*
+    int del_result {delete_table(addr, table)};
+    cerr << "delete result " << del_result << endl;
+    if (del_result != status_codes::OK) {
+throw std::exception();
+    }
+    */
+  }
+};
+
+
+// Use for testing when you dont't want entities to exist within the table
+class MyTest {
+public:
+  static constexpr const char* addr {"http://127.0.0.1:34568/"};
+  static constexpr const char* table {"DontMakeThisTable"};
+  static constexpr const char* partition {"Khaled,DJ"};
+  static constexpr const char* row {"All_I_Do_Is_Win"};
+  static constexpr const char* property {"Meme_Level"};
+  static constexpr const char* prop_val {"Holy_Meme"};
+};
+
+
+class BasicFixture {
+public:
+  static constexpr const char* addr {"http://localhost:34568/"};
+  static constexpr const char* table {"TestTable"};
+  static constexpr const char* partition {"USA"};
+  static constexpr const char* row {"Franklin,Aretha"};
+  static constexpr const char* property {"Song"};
+  static constexpr const char* prop_val {"RESPECT"};
+
+public:
+  BasicFixture() {
+    int make_result {create_table(addr, table)};
+    cerr << "create result " << make_result << endl;
+    if (make_result != status_codes::Created && make_result != status_codes::Accepted) {
+      throw std::exception();
+    }
+    int put_result {put_entity (addr, table, partition, row, property, prop_val)};
+    cerr << "put result " << put_result << endl;
+    if (put_result != status_codes::OK) {
+      throw std::exception();
+    }
+  }
+
+  ~BasicFixture() {
+    int del_ent_result {delete_entity (addr, table, partition, row)};
+    if (del_ent_result != status_codes::OK) {
+      throw std::exception();
+    }
+
+    /*
+      In traditional unit testing, we might delete the table after every test.
+
+      However, in cloud NoSQL environments (Azure Tables, Amazon DynamoDB)
+      creating and deleting tables are rate-limited operations. So we
+      leave the table after each test but delete all its entities.
+    */
+    cout << "Skipping table delete" << endl;
+    /*
       int del_result {delete_table(addr, table)};
       cerr << "delete result " << del_result << endl;
       if (del_result != status_codes::OK) {
-	throw std::exception();
+        throw std::exception();
       }
-      */
-    }
-  };
+    */
+  }
+};
 
+
+SUITE(GET) {
   /*
     A test of GET of a single entity
-   */
+  */
   TEST_FIXTURE(GetFixture, GetSingle) {
     pair<status_code,value> result {
       do_request (methods::GET,
-		  string(GetFixture::addr)
-		  + GetFixture::table + "/"
-		  + GetFixture::partition + "/"
-		  + GetFixture::row)};
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + GetFixture::table + "/"
+      + GetFixture::partition + "/"
+      + GetFixture::row)};
       
       CHECK_EQUAL(string("{\"")
-		  + GetFixture::property
-		  + "\":\""
-		  + GetFixture::prop_val
-		  + "\"}",
-		  result.second.serialize());
+      + GetFixture::property
+      + "\":\""
+      + GetFixture::prop_val
+      + "\"}",
+      result.second.serialize());
       CHECK_EQUAL(status_codes::OK, result.first);
     }
 
   /*
     A test of GET all table entries
+
+    Demonstrates use of new compare_json_arrays() function.
    */
-  TEST_FIXTURE(GetFixture, GetAll) {
-    string partition {"Katherines,The"};
-    string row {"Canada"};
+  TEST_FIXTURE(BasicFixture, GetAll) {
+    string partition {"Canada"};
+    string row {"Katherines,The"};
     string property {"Home"};
     string prop_val {"Vancouver"};
-    int put_result {put_entity (GetFixture::addr, GetFixture::table, partition, row, property, prop_val)};
+    int put_result {put_entity (BasicFixture::addr, BasicFixture::table, partition, row, property, prop_val)};
     cerr << "put result " << put_result << endl;
     assert (put_result == status_codes::OK);
 
     pair<status_code,value> result {
       do_request (methods::GET,
-		  string(GetFixture::addr)
-		  + string(GetFixture::table))};
-    CHECK(result.second.is_array());
-    CHECK_EQUAL(2, result.second.as_array().size());
-    /*
-      Checking the body is not well-supported by UnitTest++, as we have to test
-      independent of the order of returned values.
-     */
-    //CHECK_EQUAL(body.serialize(), string("{\"")+string(GetFixture::property)+ "\":\""+string(GetFixture::prop_val)+"\"}");
+      string(BasicFixture::addr)
+      + read_entity_admin + "/"
+      + string(BasicFixture::table))};
     CHECK_EQUAL(status_codes::OK, result.first);
-    CHECK_EQUAL(status_codes::OK, delete_entity (GetFixture::addr, GetFixture::table, partition, row));
+    value obj1 {
+      value::object(vector<pair<string,value>> {
+          make_pair(string("Partition"), value::string(partition)),
+          make_pair(string("Row"), value::string(row)),
+          make_pair(property, value::string(prop_val))
+      })
+    };
+    value obj2 {
+      value::object(vector<pair<string,value>> {
+          make_pair(string("Partition"), value::string(BasicFixture::partition)),
+          make_pair(string("Row"), value::string(BasicFixture::row)),
+          make_pair(string(BasicFixture::property), value::string(BasicFixture::prop_val))
+      })
+    };
+    vector<object> exp {
+      obj1.as_object(),
+      obj2.as_object()
+    };
+    compare_json_arrays(exp, result.second);
+    CHECK_EQUAL(status_codes::OK, delete_entity (BasicFixture::addr, BasicFixture::table, partition, row));
   }
+
+
+
+
+
+  /*
+    Test for assignment1 GET operation 1
+    Begin Here
+
+    Included are test for:  Missing table name
+                            Missing partition name
+                            Missing row name
+                            Request line with a table that does not exist
+                            Request with a specific property
+  */
+
+
+  // Test GET with a request that does not have a table name
+  TEST_FIXTURE(MyTest, MissingTable) {
+    cout << "\nTest for GET when the request is missing a table name" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET, 
+      string(MyTest::addr)
+      + read_entity_admin)};
+
+    cout << "This was returned in result.first: " << result.first << endl;
+    CHECK_EQUAL(status_codes::BadRequest, result.first);
+  }
+
+  // Test GET with a request of that is missing a row name
+  TEST_FIXTURE(GetFixture, MissingRow) {
+    cout << "\nTest for GET when the request URI is missing a row name" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table) + "/"
+      + string(GetFixture::partition))};
+
+    cout << "Returned from the GET request" << endl;
+
+    //cout << "This was returned in result.first: " << result.first << endl;
+    //cout << "This was returned in result.second: " << result.second << endl;
+    CHECK_EQUAL(status_codes::BadRequest, result.first);
+  }
+
+
+  // Test GET with a request of that is missing a partition name
+  TEST_FIXTURE(GetFixture, MissingPartition) {
+    cout << "\nTest for GET when the request URI is missing a partition name" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table) + "/"
+      + string(GetFixture::row))};
+
+    cout << "Returned from the GET request" << endl;
+
+    //cout << "This was returned in result.first: " << result.first << endl;
+    //cout << "This was returned in result.second: " << result.second << endl;
+    CHECK_EQUAL(status_codes::BadRequest, result.first);
+  }
+  
+
+  // Test get with a table name that doesn't exist in the table
+  TEST_FIXTURE(MyTest, TableDoesNotExist){
+    cout << "\nTest for GET when the request has a table name that does not exist" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(MyTest::addr)
+      + read_entity_admin + "/"
+      + MyTest::table + "/"
+      + MyTest::partition + "/"
+      + MyTest::row)};
+
+    cout << "This was returned in result.first: " << result.first << endl;
+    cout << "This was returned in result.second: " << result.second << endl; 
+    CHECK_EQUAL(status_codes::NotFound, result.first);
+  }
+
+
+  // Test get with a table name that closely matches an already existing table
+  TEST_FIXTURE(MyTest, TableDoesNotExisterTwo){
+    cout << "\nTest for GET when the request has a table name that does not exist" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(MyTest::addr)
+      + read_entity_admin + "/"
+      + "TeStTaBlE" + "/"
+      + MyTest::partition + "/"
+      + MyTest::row)};
+
+    cout << "This was returned in result.first: " << result.first << endl;
+    cout << "This was returned in result.second: " << result.second << endl; 
+    CHECK_EQUAL(status_codes::NotFound, result.first);
+  }
+
+
+  // Test request for GET to return a JSON body given a Partition name that does not exist within the table
+  TEST_FIXTURE(MyTest, PartitionDoesNotExist) {
+    cout << "\nTest for GET to return a JSON body given a specific Partition that does not exist in the table" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+        string(MyTest::addr)
+        + read_entity_admin + "/"
+        + "TestTable" + "/"
+        + "fAkEpArTiOn" + "/"
+        + "*")};
+
+    CHECK_EQUAL(status_codes::NotFound, result.first);
+    CHECK_EQUAL(0, result.second.as_array().size());
+  }
+
+
+  // Test request for GET to return a JSON body given a Partition name that does exist within the table
+  TEST_FIXTURE(GetFixture, PartitionExists) {
+    cout << "\nTest for GET to return a JSON body given a specific Partition that exists within the table" << endl;
+    pair<status_code,value> result {
+      do_request (methods::GET,
+        string(GetFixture::addr)
+        + read_entity_admin + "/"
+        + string(GetFixture::table) + "/"
+        + string(GetFixture::partition) + "/"
+        + "*")};
+
+    CHECK_EQUAL(status_codes::OK, result.first);
+    CHECK_EQUAL(1, result.second.as_array().size());
+  }
+
+
+  // Test request for GET to return a JSON body given a specific Partition name that is associated with multiple rows (multiple properties / property values)
+  TEST_FIXTURE(MyTest, PartitionExistsWithManyRows) {
+    cout << "\nTest for GET to return a JSON body given a specific Partition that has multiple multiple rows (multiple property / property values" << endl;
+    string partition {"Khaled,DJ"};
+    string property {"Meme_Level"};
+
+    string row1 {"All_I_Do_Is_Win"};
+    string prop_val1 {"Holy_Meme"};
+
+    string row2 {"Hold_You_Down"};
+    string prop_val2 {"Dank_Meme"};
+
+    string row3 {"How_Many_Times"};
+    string prop_val3 {"Decent_Meme"};
+
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row1, property, prop_val1)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition, row2, property, prop_val2)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    int putThree {put_entity (MyTest::addr, "TestTable", partition, row3, property, prop_val3)};
+    cerr << "put result " << putThree << endl;
+    assert (putThree == status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(MyTest::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table) + "/"
+      + string(MyTest::partition) + "/"
+      + "*")};
+
+    CHECK_EQUAL(3,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row1));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row2));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row3));
+  }
+
+
+  // Test request for GET to return a JSON body given a Partition name in a table with more than one partition
+  TEST_FIXTURE(GetFixture, MultiplePartitions) {
+
+    // GetFixture has a constructor that gets called and places an entity into the table
+    // The table placed into the table has a different partition than the one we are adding
+
+    cout << "\nTest for GET to return a JSON body given a specific Partition in a table with multiple partitions" << endl;
+    string partition {"Khaled,DJ"};
+    string property {"Meme_Level"};
+
+    string row1 {"All_I_Do_Is_Win"};
+    string prop_val1 {"Holy_Meme"};
+
+    string row2 {"Hold_You_Down"};
+    string prop_val2 {"Dank_Meme"};
+
+    string row3 {"How_Many_Times"};
+    string prop_val3 {"Decent_Meme"};
+
+    string partition4 {"Sabotage,Hippie"};
+    string row4 {"Ridin_Solo"};
+    string property4 {"Meme_Level"};
+    string prop_val4 {"Not_Dank_Enough"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row1, property, prop_val1)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition, row2, property, prop_val2)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    int putThree {put_entity (MyTest::addr, "TestTable", partition, row3, property, prop_val3)};
+    cerr << "put result " << putThree << endl;
+    assert (putThree == status_codes::OK);
+
+    int putFour {put_entity (MyTest::addr, "TestTable", partition4, row4, property4, prop_val4)};
+    cerr << "put result " << putFour << endl;
+    assert (putFour == status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(MyTest::addr)
+      + read_entity_admin + "/"
+      + "TestTable" + "/"
+      + partition4 + "/"
+      + "*")};
+
+    CHECK_EQUAL(1,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row1));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row2));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row3));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition4, row4));
+
+    // GetFixture deletes the entity it adds so we do not have to delete it here
+  }
+
+  /*
+  // Test request for GET to return a JSON body given a Partition that has empty strings for Property and Property Value
+  TEST_FIXTURE(MyTest, PartitionWithEmptyStringPropertyAndValues) {
+    cout << "\nTest for GET to return a JSON body given a Partition that has empty strings for Property and Property Value" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {""};
+    string prop_val {""};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(MyTest::addr)
+      + read_entity_admin + "/"
+      + "TestTable" + "/"
+      + partition + "/"
+      + "*")};
+
+    CHECK_EQUAL(1, result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+  }
+  */
+
+  /*
+    Test for assignment1 GET operation 1
+    End Here
+  */
+
+
+
+
+
+  /*
+    Test for assignment1 GET operation 2
+    Begin Here
+
+    Included are test for:  Request line containing a specific property
+                            Request line containing specific properties
+
+    Note: Property value SHOULDNT have to match
+          Only need to return entities with matching Properties 
+
+          Ex: Suppose we have three entities
+              1: Property = "Meme_Level" | Property Value = "*"
+              2: Property = "Meme_Level" | Property Value = "*"
+              3: Property = "Awards"     | Property Value = "*"
+              If we send a request with Property = "Meme_Level" the returned JSON body should contain 1 and 2
+              If we send a request with PRoperty = "Awards" the returned JSON body should only contain 3
+  */
+              
+  // Test request for GET to return a JSON body given a one specific Property in a table that only has one entity
+  TEST_FIXTURE(MyTest, OnePropertyOneEntity) {
+    cout << "\nTest for GET to return a JSON body given a specific Property and Property Value when the table has one entity" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {"Meme_Level"};
+
+    string prop_val_does_not_matter {"*"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val_does_not_matter)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table),value::object (vector<pair<string,value>>
+             {make_pair(property, value::string(prop_val_does_not_matter))}))};;
+
+    cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(1,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+  }
+
+
+  // Test request for GET to return a JSON body given Property name in a table with two entities with the same property
+  TEST_FIXTURE(MyTest, OnePropertyTwoEntities) {
+    cout << "\nTest for GET to return a JSON body given a specific Property when the table has two entities with the same property" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {"Meme_Level"};
+
+    string row2 {"Hold_You_Down"};
+
+    string prop_val_does_not_matter {"*"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val_does_not_matter)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition, row2, property, prop_val_does_not_matter)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table),value::object (vector<pair<string,value>>
+             {make_pair(property, value::string(prop_val_does_not_matter))}))};;
+
+    cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(2,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row2));
+  }
+
+
+  // Test request for GET to return a JSON body given Property name in a table with two entities with the same property
+  TEST_FIXTURE(MyTest, TwoPropertiesOneEntityWithBoth) {
+    cout << "\nTest for GET to return a JSON body given a specific Property when the table has two entities with the same property" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {"Meme_Level"};
+
+    string partition2 {"Sabotage,Hippie"};
+    string row2 {"Ridin_Solo"};
+    string property2 {"Awards"};
+
+    string prop_val3 {"All_The_Awards"};
+
+    string prop_val_does_not_matter {"*"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val_does_not_matter)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition2, row2, property2, prop_val_does_not_matter)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    int putThree {put_entity (MyTest::addr, "TestTable", partition, row, property2, prop_val_does_not_matter)};
+    cerr << "put result " << putThree << endl;
+    assert (putThree == status_codes::OK);
+
+    vector<pair<string,value>> json_body;
+    pair<string,value> pOne {make_pair(property, value::string(prop_val_does_not_matter))};
+    pair<string,value> pTwo {make_pair(property2, value::string(prop_val_does_not_matter))};
+
+    json_body.push_back(pOne);
+    json_body.push_back(pTwo);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/" 
+      + string(GetFixture::table),value::object (json_body))}; 
+
+    cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(1,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition2, row2));
+  }
+
+
+  // Test request for GET to return a JSON body given Property name in a table with two entities with the same property
+  TEST_FIXTURE(MyTest, TwoPropertiesTwoEntitiesWithBoth) {
+    cout << "\nTest for GET to return a JSON body given a specific Property when the table has two entities with the same property" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {"Meme_Level"};
+
+    string partition2 {"Sabotage,Hippie"};
+    string row2 {"Ridin_Solo"};
+    string property2 {"Awards"};
+
+    string prop_val3 {"All_The_Awards"};
+
+    string prop_val_does_not_matter {"*"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val_does_not_matter)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition2, row2, property, prop_val_does_not_matter)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    int putThree {put_entity (MyTest::addr, "TestTable", partition2, row2, property2, prop_val_does_not_matter)};
+    cerr << "put result " << putThree << endl;
+    assert (putThree == status_codes::OK);
+
+    int putFour {put_entity (MyTest::addr, "TestTable", partition, row, property2, prop_val_does_not_matter)};
+    cerr << "put result " << putFour << endl;
+    assert (putFour == status_codes::OK);
+
+    vector<pair<string,value>> json_body;
+    pair<string,value> pOne {make_pair(property, value::string(prop_val_does_not_matter))};
+    pair<string,value> pTwo {make_pair(property2, value::string(prop_val_does_not_matter))};
+
+    json_body.push_back(pOne);
+    json_body.push_back(pTwo);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table),value::object (json_body))}; 
+
+    cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(2,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition2, row2));
+  }
+
+
+  // Test request for GET to return a JSON body given two Properties in a table where no entities contain both properties
+  TEST_FIXTURE(MyTest, TwoPropertiesZeroEntities) {
+    cout << "\nTest for GET to return a JSON body given two Properties in a table where no entities contain both properties" << endl;
+    string partition {"Khaled,DJ"};
+    string row {"All_I_Do_Is_Win"};
+    string property {"Meme_Level"};
+
+    string partition2 {"Sabotage,Hippie"};
+    string row2 {"Ridin_Solo"};
+    string property2 {"Awards"};
+
+    string prop_val_does_not_matter {"*"};
+
+    int putOne {put_entity (MyTest::addr, "TestTable", partition, row, property, prop_val_does_not_matter)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    int putTwo {put_entity (MyTest::addr, "TestTable", partition2, row2, property2, prop_val_does_not_matter)};
+    cerr << "put result " << putTwo << endl;
+    assert (putTwo == status_codes::OK);
+
+    vector<pair<string,value>> json_body;
+    pair<string,value> pOne {make_pair(property, value::string(prop_val_does_not_matter))};
+    pair<string,value> pTwo {make_pair(property2, value::string(prop_val_does_not_matter))};
+
+    json_body.push_back(pOne);
+    json_body.push_back(pTwo);
+
+    pair<status_code,value> result {
+      do_request (methods::GET,
+      string(GetFixture::addr)
+      + read_entity_admin + "/"
+      + string(GetFixture::table),value::object (json_body))}; 
+
+    cout << "this was returned: " << result.second << endl;
+    CHECK_EQUAL(status_codes::NotFound, result.first);
+    CHECK_EQUAL(0,result.second.size());
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition, row));
+    CHECK_EQUAL(status_codes::OK, delete_entity (MyTest::addr, "TestTable", partition2, row2));
+  }
+  /*
+    End of tests for GET
+  */
 }
 
-/*
-  Locate and run all tests
- */
-int main(int argc, const char* argv[]) {
-  return UnitTest::RunAllTests();
+class AuthFixture {
+public:
+  static constexpr const char* addr {"http://localhost:34568/"};
+  static constexpr const char* auth_addr {"http://localhost:34570/"};
+  static constexpr const char* userid {"user"};
+  static constexpr const char* user_pwd {"user"};
+  static constexpr const char* auth_table {"AuthTable"};
+  static constexpr const char* auth_table_partition {"Userid"};
+  static constexpr const char* auth_pwd_prop {"Password"};
+  static constexpr const char* table {"DataTable"};
+  static constexpr const char* partition {"USA"};
+  static constexpr const char* row {"Franklin,Aretha"};
+  static constexpr const char* property {"Song"};
+  static constexpr const char* prop_val {"RESPECT"};
+
+public:
+  AuthFixture() {
+    int make_result {create_table(addr, table)};
+    cerr << "create result " << make_result << endl;
+    if (make_result != status_codes::Created && make_result != status_codes::Accepted) {
+      throw std::exception();
+    }
+    int put_result {put_entity (addr, table, partition, row, property, prop_val)};
+    cerr << "put result " << put_result << endl;
+    if (put_result != status_codes::OK) {
+      throw std::exception();
+    }
+    // Ensure userid and password in system
+    int user_result {put_entity (addr,
+                                 auth_table,
+                                 auth_table_partition,
+                                 userid,
+                                 auth_pwd_prop,
+                                 user_pwd)};
+    cerr << "user auth table insertion result " << user_result << endl;
+    if (user_result != status_codes::OK)
+      throw std::exception();
+  }
+
+  ~AuthFixture() {
+    int del_ent_result {delete_entity (addr, table, partition, row)};
+    if (del_ent_result != status_codes::OK) {
+      throw std::exception();
+    }
+  }
+};
+
+SUITE(UPDATE_AUTH) {
+  TEST_FIXTURE(AuthFixture,  PutAuth) {
+
+    // Add DataPartition and DataRow as a Property/PropertyValue to the user "user" in AuthTable
+    int putOne {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            AuthFixture::partition, 
+                            AuthFixture::row)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
+    pair<string,string> added_prop {make_pair(string("born"),string("1942"))};
+
+    cout << "Requesting token" << endl;
+    pair<status_code,string> token_res {
+      get_update_token(AuthFixture::auth_addr,
+                       AuthFixture::userid,
+                       AuthFixture::user_pwd)};
+    cout << "Token response " << token_res.first << endl;
+    CHECK_EQUAL (token_res.first, status_codes::OK);
+    
+    pair<status_code,value> result {
+      do_request (methods::PUT,
+                  string(AuthFixture::addr)
+                  + update_entity_auth + "/"
+                  + AuthFixture::table + "/"
+                  + token_res.second + "/"
+                  + AuthFixture::partition + "/"
+                  + AuthFixture::row,
+                  value::object (vector<pair<string,value>>
+                                   {make_pair(added_prop.first,
+                                              value::string(added_prop.second))})
+                  )};
+    CHECK_EQUAL(status_codes::OK, result.first);
+    
+    pair<status_code,value> ret_res {
+      do_request (methods::GET,
+                  string(AuthFixture::addr)
+                  + read_entity_admin + "/"
+                  + AuthFixture::table + "/"
+                  + AuthFixture::partition + "/"
+                  + AuthFixture::row)};
+    CHECK_EQUAL (status_codes::OK, ret_res.first);
+    value expect {
+      build_json_object (
+                         vector<pair<string,string>> {
+                           added_prop,
+                           make_pair(string(AuthFixture::property), 
+                                     string(AuthFixture::prop_val))}
+                         )};
+                             
+    cout << AuthFixture::property << endl;
+    compare_json_values (expect, ret_res.second);
+  }
 }
