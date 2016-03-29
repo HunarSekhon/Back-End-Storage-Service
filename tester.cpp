@@ -1054,6 +1054,17 @@ public:
 
 SUITE(UPDATE_AUTH) {
   TEST_FIXTURE(AuthFixture,  PutAuth) {
+
+    // Add DataPartition and DataRow as a Property/PropertyValue to the user "user" in AuthTable
+    int putOne {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            AuthFixture::partition, 
+                            AuthFixture::row)};
+    cerr << "put result " << putOne << endl;
+    assert (putOne == status_codes::OK);
+
     pair<string,string> added_prop {make_pair(string("born"),string("1942"))};
 
     cout << "Requesting token" << endl;
