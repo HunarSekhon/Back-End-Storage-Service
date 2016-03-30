@@ -1081,15 +1081,25 @@ public:
 SUITE(UPDATE_AUTH) {
   TEST_FIXTURE(AuthFixture,  PutAuth) {
 
-    // Add DataPartition and DataRow as a Property/PropertyValue to the user "user" in AuthTable
-    int putOne {put_entity (AuthFixture::addr,
+    // Add DataPartition to the user in AuthTable
+    int putPartition {put_entity (AuthFixture::addr,
                             AuthFixture::auth_table,
                             AuthFixture::auth_table_partition, 
                             AuthFixture::userid,
-                            AuthFixture::partition, 
+                            "DataPartition",
+                            AuthFixture::partition)}; 
+    cerr << "put result " << putPartition << endl;
+    assert (putPartition == status_codes::OK);
+
+    // Add DataRow to the user in AuthTable
+    int putRow {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataRow",
                             AuthFixture::row)};
-    cerr << "put result " << putOne << endl;
-    assert (putOne == status_codes::OK);
+    cerr << "put result " << putRow << endl;
+    assert (putRow == status_codes::OK);
 
     pair<string,string> added_prop {make_pair(string("born"),string("1942"))};
 
