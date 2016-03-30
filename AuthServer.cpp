@@ -213,9 +213,17 @@ void handle_get(http_request message) {
     return;
   }
 
-  // Check table
-  cloud_table table {table_cache.lookup_table(auth_table_name)};
-  if ( ! table.exists()) {
+  // Check AuthTable
+  cloud_table auth_table {table_cache.lookup_table(auth_table_name)};
+  if ( ! auth_table.exists()) {
+    cout << "Table does not exist" << endl;
+    message.reply(status_codes::NotFound);
+    return;
+  }
+
+  // Check DataTable
+  cloud_table data_table {table_cache.lookup_table(data_table_name)};
+  if ( ! data_table.exists()) {
     cout << "Table does not exist" << endl;
     message.reply(status_codes::NotFound);
     return;
@@ -235,17 +243,18 @@ void handle_get(http_request message) {
       prop_val.push_back(it->second);
     }
 
-    // Check to make sure Property passed into function was "Password"
-    if (prop[0] != "Password") {
+    // Check to make sure only one property was included in the body and the property had the name "Password"
+    if (prop.size() != 1 || prop[0] != "Password") {
       message.reply(status_codes::BadRequest);
       return;
     }
 
-    // Iterate AuthTable to find the matching user, check password, obtain partition/row, obtain key
+    // Iterate AuthTable to find the matching user, check the password, obtain partition and row, get token
     table_query query {};
     table_query_iterator end;
-    table_query_iterator it_userid = table.execute_query(query);
+    table_query_iterator it_userid = auth_table.execute_query(query);
     vector<value> key_vec;
+    string store_partition, store_row;
     while (it_userid != end) {
 
       if (it_userid->row_key() == paths[1]) {
@@ -253,36 +262,48 @@ void handle_get(http_request message) {
         // keys is returned as a pair | <i> if n == 0 then Property, if i == 1 then row | [i] == nth set of Property / Property Value
         prop_str_vals_t keys {get_string_properties(it_userid->properties())};
 
-        // Go through the two properties (Password/Password or Partition/Row)
+        // Go through the three objects in the entity
         for (int i = 0; i < keys.size(); i++) {
 
-          // First find Property/PropertyValue that associates with the password
+          // First find property that associates with the password
           if (std::get<0>(keys[i]) == "Password") {
 
             // Check if the password in the table matches the password in our message
             if (std::get<1>(keys[i]) == prop_val[0]) {
               cout << "Password provided was correct" << endl;
               
-              // Go through the two proeprties (Password/Password or Partition/Row)
+              // Go through the three properties to the the ones associated with partition and row
               for (int n = 0; n < keys.size(); n++) {
 
-                // Find the Property/PropertyValue that associates with the Partition/Row we are trying to access in DataTable
-                if (std::get<0>(keys[n]) != "Password") {
-
-                  cout << "The partition: " << std::get<0>(keys[n]) << endl;
-                  cout << "The row: " << std::get<1>(keys[n]) << endl;
-                  // Once found, obtain the token
-                  pair<status_code,string> result {do_get_token(table, std::get<0>(keys[n]), std::get<1>(keys[n]), 
-                    table_shared_access_policy::permissions::read)};
-
-                  pair<string,string> tokenPair {make_pair ("token", result.second)};
-                  value token {build_json_value(tokenPair)};
-                  message.reply(result.first, token);
-                  return;
+                // Store the name of the partition in DataTable associated with the user in store_partition
+                if (std::get<0>(keys[n]) == "DataPartition") {
+                  store_partition = std::get<1>(keys[n]);
                 }
-                // There has to be a second field otherwise the insert was incorrect
+
+                // Store the name of the row in DataTable associated wit the user in store_row
+                if (std::get<0>(keys[n]) == "DataRow") {
+                  store_row = std::get<1>(keys[n]);
+                }
+
               }
-              // There has to be a second Property/PropertyValue to be found otherwise the table was missing something from the start
+              
+              // Upon leaving the loop we should have obtained a string for the partition and the row
+              // Make sure the strings are not empty
+              if (store_partition.size() == 0 || store_row.size() == 0) {
+                message.reply(status_codes::NotFound);
+                return;
+              }
+
+              else {
+                // Once found, obtain the token
+                pair<status_code,string> result {do_get_token(data_table, store_partition, store_row, 
+                                                              table_shared_access_policy::permissions::read)};
+
+                pair<string,string> tokenPair {make_pair ("token", result.second)};
+                value token {build_json_value(tokenPair)};
+                message.reply(result.first, token);
+                return;
+              }
             }
 
             // If the password in the table does not match the password provided in the message
@@ -293,7 +314,7 @@ void handle_get(http_request message) {
             }
 
           }
-          // There should be no else case, if the current Property/PropertyValue pair is not associated with the password then it just moves to the next pair
+          // There should be no else case, if the current property pair is not associated with the password then it just moves to the next property
         }
         // If the user is found to be in the table
         // the only two returns should be from either an incorrect password or a successful request to obtain a token so nothing else is needed
@@ -304,12 +325,13 @@ void handle_get(http_request message) {
     }
 
     // If it leaves the while loop without then the user id was not found so we return the status code NotFound
+    cout << "User Not Found" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
 
 
-  // If command is GetUpdateToken
+   // If command is GetUpdateToken
   if (paths[0] == get_update_token_op) {
 
     vector<string> prop, prop_val;
@@ -321,17 +343,18 @@ void handle_get(http_request message) {
       prop_val.push_back(it->second);
     }
 
-    // Check to make sure Property passed into function was "Password"
-    if (prop[0] != "Password") {
+    // Check to make sure only one property was included in the body and the property had the name "Password"
+    if (prop.size() != 1 || prop[0] != "Password") {
       message.reply(status_codes::BadRequest);
       return;
     }
 
-    // Iterate AuthTable to find the matching user, check password, obtain partition/row, obtain key
+    // Iterate AuthTable to find the matching user, check the password, obtain partition and row, get token
     table_query query {};
     table_query_iterator end;
-    table_query_iterator it_userid = table.execute_query(query);
+    table_query_iterator it_userid = auth_table.execute_query(query);
     vector<value> key_vec;
+    string store_partition, store_row;
     while (it_userid != end) {
 
       if (it_userid->row_key() == paths[1]) {
@@ -339,36 +362,49 @@ void handle_get(http_request message) {
         // keys is returned as a pair | <i> if n == 0 then Property, if i == 1 then row | [i] == nth set of Property / Property Value
         prop_str_vals_t keys {get_string_properties(it_userid->properties())};
 
-        // Go through the two properties (Password/Password or Partition/Row)
+        // Go through the three objects in the entity
         for (int i = 0; i < keys.size(); i++) {
 
-          // First find Property/PropertyValue that associates with the password
+          // First find property that associates with the password
           if (std::get<0>(keys[i]) == "Password") {
 
             // Check if the password in the table matches the password in our message
             if (std::get<1>(keys[i]) == prop_val[0]) {
               cout << "Password provided was correct" << endl;
               
-              // Go through the two proeprties (Password/Password or Partition/Row)
+              // Go through the three properties to the the ones associated with partition and row
               for (int n = 0; n < keys.size(); n++) {
 
-                // Find the Property/PropertyValue that associates with the Partition/Row we are trying to access in DataTable
-                if (std::get<0>(keys[n]) != "Password") {
-
-                  cout << "The partition: " << std::get<0>(keys[n]) << endl;
-                  cout << "The row: " << std::get<1>(keys[n]) << endl;
-                  // Once found, obtain the token
-                  pair<status_code,string> result {do_get_token(table, std::get<0>(keys[n]), std::get<1>(keys[n]), 
-                    table_shared_access_policy::permissions::read | table_shared_access_policy::permissions::update)};
-
-                  pair<string,string> tokenPair {make_pair ("token", result.second)};
-                  value token {build_json_value(tokenPair)};
-                  message.reply(result.first, token);
-                  return;
+                // Store the name of the partition in DataTable associated with the user in store_partition
+                if (std::get<0>(keys[n]) == "DataPartition") {
+                  store_partition = std::get<1>(keys[n]);
                 }
-                // There has to be a second field otherwise the insert was incorrect
+
+                // Store the name of the row in DataTable associated wit the user in store_row
+                if (std::get<0>(keys[n]) == "DataRow") {
+                  store_row = std::get<1>(keys[n]);
+                }
+
               }
-              // There has to be a second Property/PropertyValue to be found otherwise the table was missing something from the start
+              
+              // Upon leaving the loop we should have obtained a string for the partition and the row
+              // Make sure the strings are not empty
+              if (store_partition.size() == 0 || store_row.size() == 0) {
+                message.reply(status_codes::NotFound);
+                return;
+              }
+
+              else {
+                // Once found, obtain the token
+                pair<status_code,string> result {do_get_token(data_table, store_partition, store_row, 
+                                                              table_shared_access_policy::permissions::read |
+                                                              table_shared_access_policy::permissions::update)};
+
+                pair<string,string> tokenPair {make_pair ("token", result.second)};
+                value token {build_json_value(tokenPair)};
+                message.reply(result.first, token);
+                return;
+              }
             }
 
             // If the password in the table does not match the password provided in the message
@@ -379,7 +415,7 @@ void handle_get(http_request message) {
             }
 
           }
-          // There should be no else case, if the current Property/PropertyValue pair is not associated with the password then it just moves to the next pair
+          // There should be no else case, if the current property pair is not associated with the password then it just moves to the next property
         }
         // If the user is found to be in the table
         // the only two returns should be from either an incorrect password or a successful request to obtain a token so nothing else is needed
@@ -390,6 +426,7 @@ void handle_get(http_request message) {
     }
 
     // If it leaves the while loop without then the user id was not found so we return the status code NotFound
+    cout << "User Not Found" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
@@ -458,4 +495,3 @@ int main (int argc, char const * argv[]) {
   listener.close().wait();
   cout << "AuthServer closed" << endl;
 }
-  
