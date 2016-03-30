@@ -441,6 +441,19 @@ void handle_put(http_request message) {
 
   unordered_map<string,string> json_body {get_json_body (message)};  
 
+  /*
+    Coded for Assign2 Operation 2
+    
+    Check if command is for auth access
+    Uses Teds code in ServerUtils to update
+    Return
+  */
+  // If command was UpdateEntityAuth
+  if (paths[0] == update_entity_auth) {
+    message.reply(update_with_token(message, tables_endpoint, json_body));
+    return;
+  }  
+
   cloud_table table {table_cache.lookup_table(paths[1])};
   if ( ! table.exists()) {
     message.reply(status_codes::NotFound);
@@ -472,20 +485,6 @@ void handle_put(http_request message) {
     cout << "Azure Table Storage error: " << e.what() << endl;
     message.reply(status_codes::InternalError);
   }
-
-
-  /*
-    Coded for Assign2 Operation 2
-    
-    Check if command is for auth access
-    Uses Teds code in ServerUtils to update
-    Return
-  */
-  // If command was UpdateEntityAuth
-  if (paths[0] == update_entity_auth) {
-    message.reply(update_with_token(message, tables_endpoint, json_body));
-    return;
-  }  
 }
 
 /*

@@ -221,6 +221,14 @@ void handle_get(http_request message) {
     return;
   }
 
+  // Check table 2
+  cloud_table table2 {table_cache.lookup_table(data_table_name)};
+  if ( ! table2.exists()) {
+    cout << "Table does not exist" << endl;
+    message.reply(status_codes::NotFound);
+    return;
+  }
+
   unordered_map<string,string> json_body {get_json_body(message)};
 
   // If command is GetReadToken
@@ -272,7 +280,7 @@ void handle_get(http_request message) {
                   cout << "The partition: " << std::get<0>(keys[n]) << endl;
                   cout << "The row: " << std::get<1>(keys[n]) << endl;
                   // Once found, obtain the token
-                  pair<status_code,string> result {do_get_token(table, std::get<0>(keys[n]), std::get<1>(keys[n]), 
+                  pair<status_code,string> result {do_get_token(table2, std::get<0>(keys[n]), std::get<1>(keys[n]), 
                     table_shared_access_policy::permissions::read)};
 
                   pair<string,string> tokenPair {make_pair ("token", result.second)};
@@ -311,7 +319,7 @@ void handle_get(http_request message) {
 
   // If command is GetUpdateToken
   if (paths[0] == get_update_token_op) {
-
+    
     vector<string> prop, prop_val;
 
     // Store Password in prop_val
@@ -358,7 +366,7 @@ void handle_get(http_request message) {
                   cout << "The partition: " << std::get<0>(keys[n]) << endl;
                   cout << "The row: " << std::get<1>(keys[n]) << endl;
                   // Once found, obtain the token
-                  pair<status_code,string> result {do_get_token(table, std::get<0>(keys[n]), std::get<1>(keys[n]), 
+                  pair<status_code,string> result {do_get_token(table2, std::get<0>(keys[n]), std::get<1>(keys[n]), 
                     table_shared_access_policy::permissions::read | table_shared_access_policy::permissions::update)};
 
                   pair<string,string> tokenPair {make_pair ("token", result.second)};
