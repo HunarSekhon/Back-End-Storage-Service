@@ -1145,3 +1145,123 @@ SUITE(UPDATE_AUTH) {
     compare_json_values (expect, ret_res.second);
   }
 }
+
+SUITE(OBTAIN_TOKENS) {
+  TEST_FIXTURE(AuthFixture, MissingUserId) {
+
+    /*
+    Assume AuthTable already exists from curl since tables are rarely deleted
+    AuthFixure makes sure that DataTable exists by trying to create it followed by placing an entity inside the table
+    AuthFixture also adds an entity into AuthTable with the Partition "Userid" and the Row "user"
+    */
+
+    // Add DataPartition to the user in AuthTable
+    int putPartition {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataPartition",
+                            AuthFixture::partition)}; 
+    cerr << "put result " << putPartition << endl;
+    assert (putPartition == status_codes::OK);
+
+    // Add DataRow to the user in AuthTable
+    int putRow {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataRow",
+                            AuthFixture::row)};
+    cerr << "put result " << putRow << endl;
+    assert (putRow == status_codes::OK);
+  
+    cout << "Requesting token" << endl;
+    pair<status_code,string> token_res {
+      get_update_token(AuthFixture::auth_addr,
+                       "",
+                       AuthFixture::user_pwd)};
+    cout << "Token response " << token_res.first << endl;
+    CHECK_EQUAL (token_res.first, status_codes::BadRequest);
+    // No need to delete the entity created as part of AuthFixtures routine as I added the delete for the entity inside the destructor
+  }
+
+  TEST_FIXTURE(AuthFixture, UserIdNotFound) {
+
+    /*
+    Assume AuthTable already exists from curl since tables are rarely deleted
+    AuthFixure makes sure that DataTable exists by trying to create it followed by placing an entity inside the table
+    AuthFixture also adds an entity into AuthTable with the Partition "Userid" and the Row "user"
+    */
+
+    // Add DataPartition to the user in AuthTable
+    int putPartition {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataPartition",
+                            AuthFixture::partition)}; 
+    cerr << "put result " << putPartition << endl;
+    assert (putPartition == status_codes::OK);
+
+    // Add DataRow to the user in AuthTable
+    int putRow {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataRow",
+                            AuthFixture::row)};
+    cerr << "put result " << putRow << endl;
+    assert (putRow == status_codes::OK);
+  
+    cout << "Requesting token" << endl;
+    pair<status_code,string> token_res {
+      get_update_token(AuthFixture::auth_addr,
+                       "FakeUserIdentifications",
+                       AuthFixture::user_pwd)};
+    cout << "Token response " << token_res.first << endl;
+    CHECK_EQUAL (token_res.first, status_codes::NotFound);
+    // No need to delete the entity created as part of AuthFixtures routine as I added the delete for the entity inside the destructor
+  }
+
+  TEST_FIXTURE(AuthFixture, IncorrectPassword) {
+
+    /*
+    Assume AuthTable already exists from curl since tables are rarely deleted
+    AuthFixure makes sure that DataTable exists by trying to create it followed by placing an entity inside the table
+    AuthFixture also adds an entity into AuthTable with the Partition "Userid" and the Row "user"
+    */
+
+    // Add DataPartition to the user in AuthTable
+    int putPartition {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataPartition",
+                            AuthFixture::partition)}; 
+    cerr << "put result " << putPartition << endl;
+    assert (putPartition == status_codes::OK);
+
+    // Add DataRow to the user in AuthTable
+    int putRow {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataRow",
+                            AuthFixture::row)};
+    cerr << "put result " << putRow << endl;
+    assert (putRow == status_codes::OK);
+  
+    cout << "Requesting token" << endl;
+    pair<status_code,string> token_res {
+      get_update_token(AuthFixture::auth_addr,
+                       AuthFixture::userid,
+                       "FakePassword")};
+    cout << "Token response " << token_res.first << endl;
+    CHECK_EQUAL (token_res.first, status_codes::NotFound);
+    // No need to delete the entity created as part of AuthFixtures routine as I added the delete for the entity inside the destructor
+  }
+
+  TEST_FIXTURE(AuthFixture, MultiplePropertiesWithPassword) {
+    // TODO
+  }
+}
