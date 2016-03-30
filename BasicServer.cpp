@@ -347,11 +347,7 @@ void handle_get(http_request message) {
   // If command was ReadEntityAuth
   if (paths[0] == read_entity_auth) {
 
-    // Need 5 Parameters to read an entity (Command, Table Name, Token, Partition, Row)
-    if (paths.size() != 5) {
-      message.reply(status_codes::BadRequest);
-      return;
-    }
+    // Parameter checking done by ServerUtils
 
     // Check if table exists
     cloud_table table {table_cache.lookup_table(paths[1])};
@@ -441,6 +437,12 @@ void handle_put(http_request message) {
 
   unordered_map<string,string> json_body {get_json_body (message)};  
 
+  cloud_table table {table_cache.lookup_table(paths[1])};
+  if ( ! table.exists()) {
+    message.reply(status_codes::NotFound);
+    return;
+  }
+
   /*
     Coded for Assign2 Operation 2
     
@@ -453,12 +455,6 @@ void handle_put(http_request message) {
     message.reply(update_with_token(message, tables_endpoint, json_body));
     return;
   }  
-
-  cloud_table table {table_cache.lookup_table(paths[1])};
-  if ( ! table.exists()) {
-    message.reply(status_codes::NotFound);
-    return;
-  }
 
   table_entity entity {paths[2], paths[3]};
 
