@@ -243,8 +243,8 @@ void handle_get(http_request message) {
       prop_val.push_back(it->second);
     }
 
-    // Check to make sure Property passed into function was "Password"
-    if (prop[0] != "Password") {
+    // Check to make sure only one property was included in the body and the property had the name "Password"
+    if (prop.size() != 1 || prop[0] != "Password") {
       message.reply(status_codes::BadRequest);
       return;
     }
@@ -325,6 +325,7 @@ void handle_get(http_request message) {
     }
 
     // If it leaves the while loop without then the user id was not found so we return the status code NotFound
+    cout << "User Not Found" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
@@ -342,8 +343,8 @@ void handle_get(http_request message) {
       prop_val.push_back(it->second);
     }
 
-    // Check to make sure Property passed into function was "Password"
-    if (prop[0] != "Password") {
+    // Check to make sure only one property was included in the body and the property had the name "Password"
+    if (prop.size() != 1 || prop[0] != "Password") {
       message.reply(status_codes::BadRequest);
       return;
     }
@@ -425,6 +426,7 @@ void handle_get(http_request message) {
     }
 
     // If it leaves the while loop without then the user id was not found so we return the status code NotFound
+    cout << "User Not Found" << endl;
     message.reply(status_codes::NotFound);
     return;
   }
@@ -493,4 +495,3 @@ int main (int argc, char const * argv[]) {
   listener.close().wait();
   cout << "AuthServer closed" << endl;
 }
-  
