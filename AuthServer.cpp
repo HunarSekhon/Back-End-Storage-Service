@@ -265,22 +265,22 @@ void handle_get(http_request message) {
         // Go through the three objects in the entity
         for (int i = 0; i < keys.size(); i++) {
 
-          // First find object that associates with the password
+          // First find property that associates with the password
           if (std::get<0>(keys[i]) == "Password") {
 
             // Check if the password in the table matches the password in our message
             if (std::get<1>(keys[i]) == prop_val[0]) {
               cout << "Password provided was correct" << endl;
               
-              // Go through the three objects to the the ones associated with partition and row
+              // Go through the three properties to the the ones associated with partition and row
               for (int n = 0; n < keys.size(); n++) {
 
-                // Store the name of the partition in DataTable associated with the user in dataPartition
+                // Store the name of the partition in DataTable associated with the user in store_partition
                 if (std::get<0>(keys[n]) == "DataPartition") {
                   store_partition = std::get<1>(keys[n]);
                 }
 
-                // Store the name of the row in DataTable associated wit the user in dataRow
+                // Store the name of the row in DataTable associated wit the user in store_row
                 if (std::get<0>(keys[n]) == "DataRow") {
                   store_row = std::get<1>(keys[n]);
                 }
@@ -314,7 +314,7 @@ void handle_get(http_request message) {
             }
 
           }
-          // There should be no else case, if the current Property/PropertyValue pair is not associated with the password then it just moves to the next pair
+          // There should be no else case, if the current property pair is not associated with the password then it just moves to the next property
         }
         // If the user is found to be in the table
         // the only two returns should be from either an incorrect password or a successful request to obtain a token so nothing else is needed
@@ -364,22 +364,22 @@ void handle_get(http_request message) {
         // Go through the three objects in the entity
         for (int i = 0; i < keys.size(); i++) {
 
-          // First find object that associates with the password
+          // First find property that associates with the password
           if (std::get<0>(keys[i]) == "Password") {
 
             // Check if the password in the table matches the password in our message
             if (std::get<1>(keys[i]) == prop_val[0]) {
               cout << "Password provided was correct" << endl;
               
-              // Go through the three objects to the the ones associated with partition and row
+              // Go through the three properties to the the ones associated with partition and row
               for (int n = 0; n < keys.size(); n++) {
 
-                // Store the name of the partition in DataTable associated with the user in dataPartition
+                // Store the name of the partition in DataTable associated with the user in store_partition
                 if (std::get<0>(keys[n]) == "DataPartition") {
                   store_partition = std::get<1>(keys[n]);
                 }
 
-                // Store the name of the row in DataTable associated wit the user in dataRow
+                // Store the name of the row in DataTable associated wit the user in store_row
                 if (std::get<0>(keys[n]) == "DataRow") {
                   store_row = std::get<1>(keys[n]);
                 }
@@ -414,7 +414,7 @@ void handle_get(http_request message) {
             }
 
           }
-          // There should be no else case, if the current Property/PropertyValue pair is not associated with the password then it just moves to the next pair
+          // There should be no else case, if the current property pair is not associated with the password then it just moves to the next property
         }
         // If the user is found to be in the table
         // the only two returns should be from either an incorrect password or a successful request to obtain a token so nothing else is needed
