@@ -1805,3 +1805,71 @@ SUITE(PUT_AUTH) {
     // Dont need to delete the first user in AuthTable as I altered Teds destructor for AuthFixture to delete the entity
   }
 }
+
+SUITE(NotImplemented) {
+  TEST_FIXTURE(AuthFixture, ReturnNotImplemented) {
+
+    /*
+    Assume AuthTable already exists from curl since tables are rarely deleted
+    AuthFixure makes sure that DataTable exists by trying to create it followed by placing an entity inside the table
+    AuthFixture also adds an entity into AuthTable with the Partition "Userid" and the Row "user"
+    */
+
+    // Add DataPartition to the user in AuthTable
+    int putPartition {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataPartition",
+                            AuthFixture::partition)}; 
+    cerr << "put result " << putPartition << endl;
+    assert (putPartition == status_codes::OK);
+
+    // Add DataRow to the user in AuthTable
+    int putRow {put_entity (AuthFixture::addr,
+                            AuthFixture::auth_table,
+                            AuthFixture::auth_table_partition, 
+                            AuthFixture::userid,
+                            "DataRow",
+                            AuthFixture::row)}; 
+    cerr << "put result " << putRow << endl;
+    assert (putRow == status_codes::OK);
+    pair<string,string> added_prop {make_pair(string("born"),string("1942"))};
+
+    cout << "Requesting token" << endl;
+    pair<status_code,string> token_res {
+      get_update_token(AuthFixture::auth_addr,
+                       AuthFixture::userid,
+                       AuthFixture::user_pwd)};
+    cout << "Token response " << token_res.first << endl;
+    CHECK_EQUAL (token_res.first, status_codes::OK);
+
+    pair<status_code,value> result {
+      do_request (methods::PUT,
+                  string(AuthFixture::addr)
+                  + update_property_admin + "/"
+                  + AuthFixture::table + "/"
+                  + token_res.second + "/"
+                  + AuthFixture::partition + "/"
+                  + AuthFixture::row,
+                  value::object (vector<pair<string,value>>
+                                   {make_pair(added_prop.first,
+                                              value::string(added_prop.second))})
+                  )};
+    CHECK_EQUAL(status_codes::NotImplemented, result.first);
+    
+    pair<status_code,value> result2 {
+      do_request (methods::PUT,
+                  string(AuthFixture::addr)
+                  + add_property_admin + "/"
+                  + AuthFixture::table + "/"
+                  + token_res.second + "/"
+                  + AuthFixture::partition + "/"
+                  + AuthFixture::row,
+                  value::object (vector<pair<string,value>>
+                                   {make_pair(added_prop.first,
+                                              value::string(added_prop.second))})
+                  )};
+    CHECK_EQUAL(status_codes::NotImplemented, result2.first);
+  }
+}
