@@ -81,6 +81,9 @@ const string update_entity_auth {"UpdateEntityAuth"};
 const string get_read_token_op  {"GetReadToken"};
 const string get_update_token_op {"GetUpdateToken"};
 
+const string add_property_admin {"AddPropertyAdmin"};
+const string update_property_admin {"UpdatePropertyAdmin"};
+
 
 /*
   Cache of opened tables
@@ -440,6 +443,13 @@ void handle_put(http_request message) {
   cloud_table table {table_cache.lookup_table(paths[1])};
   if ( ! table.exists()) {
     message.reply(status_codes::NotFound);
+    return;
+  }
+
+  // Code for Assign2 (Commands for extra things we did not do in Assign1)
+  // If command was AddPropertyAdmin or UpdatePropertyAdmin
+  if (paths[0] == add_property_admin || paths[0] == update_property_admin) {
+    message.reply(status_codes::NotImplemented);
     return;
   }
 
