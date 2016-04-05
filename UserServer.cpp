@@ -23,8 +23,6 @@
 #include "TableCache.h"
 #include "make_unique.h"
 
-#include "azure_keys.h"
-
 #include "ServerUtils.h"
 
 #include "ClientUtils.h"
@@ -88,11 +86,6 @@ const string update_property_admin {"UpdatePropertyAdmin"};
 
 
 /*
-  Cache of opened tables
- */
-TableCache table_cache {};
-
-/*
   Top-level routine for processing all HTTP POST requests.
  */
 void handle_post(http_request message) {
@@ -127,7 +120,6 @@ void handle_put(http_request message) {
 int main (int argc, char const * argv[]) {
   cout << "UserServer Open" << endl;
   cout << "Parsing connection string" << endl;
-  table_cache.init (storage_connection_string);
 
   cout << "Opening listener" << endl;
   http_listener listener {def_url};
