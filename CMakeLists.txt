@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 2.6)
 project (BasicServer)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
-set(USER_DIR ~/cmpt276/)
+set(USER_DIR /home/vagrant)
 
 set(SSL_DIR /usr/lib/x86_64-linux-gnu)
 set(Casablanca_DIR ${USER_DIR}/casablanca)
