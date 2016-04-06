@@ -243,7 +243,21 @@ void handle_post(http_request message) {
   }
 
   if (paths[0] == sign_off_op) {
-    // TODO
+    
+    // Find the user; if found remove from hashtable
+    for (auto it = user_base.begin(); it != user_base.end(); it++) {
+      if (it->first == user_id) {
+        it = user_base.erase(it);
+        cout << user_id << " is now offline" << endl;
+        cout << "There are " << user_base.size() << " users still online" << endl;
+        message.reply(status_codes::OK);
+        return;
+      }
+    }
+
+    // If did not return during the iteration then the user did not have an active session
+    message.reply(status_codes::NotFound);
+    return;
   } 
 
   // No more accepted commands beyond this point
