@@ -50,10 +50,18 @@ const string update_entity_auth {"UpdateEntityAuth"};
 
 const string get_read_token_op  {"GetReadToken"};
 const string get_update_token_op {"GetUpdateToken"};
+const string get_update_data_op {"GetUpdateData"};
 
 // The two optional operations from Assignment 1
 const string add_property_admin {"AddPropertyAdmin"};
 const string update_property_admin {"UpdatePropertyAdmin"};
+
+const string sign_on_op {"SignOn"};
+const string sign_off_op {"SignOff"};
+const string add_friend_op {"AddFriend"};
+const string un_friend_op {"UnFriend"};
+const string update_status {"UpdateStatus"};
+const string read_friend_list {"ReadFriendList"};
 
 /*
   Make an HTTP request, returning the status code and any JSON value in the body
