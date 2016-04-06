@@ -347,8 +347,8 @@ void handle_put(http_request message) {
 
   if (paths[0] == add_friend_op) {
 
-    // Obtain the users friends list through an authorized GET using BasicServer
-    pair<status_code,value> friend_prop {do_request (methods::GET,
+    // Obtain the users properties through an authorized GET using BasicServer
+    pair<status_code,value> user_prop {do_request (methods::GET,
                                                      basic_url +
                                                      read_entity_auth + "/" +
                                                      data_table_name + "/" +
@@ -356,24 +356,58 @@ void handle_put(http_request message) {
                                                      user_partition + "/" +
                                                      user_row)};
 
-    // Get a string that represents the users friend list
-    string friend_list {get_json_object_prop(friend_prop.second, prop_friends)};
+    // Unpack the properties associated with the entity
+    unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
 
-    // Take the parameters and format them so they can be added to the friend list
-    // Takes the form "country;Name"
-    const string friend_to_add {friend_country+";"+friend_name};
+    // Obtain the friend list
+    string friend_list;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == "Friends")
+        friend_list = it->second;
+      // Else it will iterate until friends is found
+      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+    }
 
-    // Add new friend to the string for the users friend list
-    // NOTE: Assume the friend list is in standard form
+    // Construct string for the friend to add
+    string friend_to_add {friend_country+";"+friend_name};
+
+    // Check if the friend to add is already a friend
+    friends_list_t check_friends {parse_friends_list(friend_list)};
+
+    // NOT WORKING
+    for (int it = 0; it < check_friends.size(); it++) {
+      if (check_friends[it] == friend_to_add) {
+        message.reply(status_codes::OK);
+        return;
+      }
+      // If the friend the user is adding is not in the list, continue on
+    }
+
+    // Add friend to the end of the list; assume the friend list is in standard form ("|" is only used inbetween friends and not added to the end of the list)
     friend_list = friend_list+"|"+friend_to_add;
 
-    /*
-      STILL MISSING: PACKAGE PROPERTIES BACK AS JSON VALUE
-                     UPDATE ENTITY WITH NEW SET OF PROPERTIES
+    // Repackage the properties and their values into a pair and push them into a vector
+    vector<pair<string,string>> rebuild;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      pair<string,string> props {make_pair (it->first, it->second)};
+      rebuild.push_back(props);
+    }
 
-                     We didn't do UpdateProperty from Assign1 so we cant just update the property
-                     We need to update the entire entity
-    */
+    // Use the new vector and build a json value from it containing the updated properties
+    value new_properties {build_json_value(rebuild)};
+
+    pair<status_code,value> update_properties {do_request (methods::GET,
+                                                   basic_url +
+                                                   update_entity_auth + "/" +
+                                                   data_table_name + "/" +
+                                                   user_token + "/" +
+                                                   user_partition + "/" +
+                                                   user_row,
+                                                   new_properties)};
+
+    // Return what the PUT method gives; it should be OK and update the entity
+    message.reply(update_properties.first);
+    return;
   }
 
   if (paths[0] == un_friend_op) {
