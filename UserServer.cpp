@@ -160,6 +160,18 @@ unordered_map<string,string> get_json_body(http_request message) {
 unordered_map<string,tuple<string,string,string>> user_base;
 
 /*
+  Function takes in a string (the user id)
+  Returns a boolean: true if found, false if not found
+*/
+bool find_user(string user_id) {
+  for (auto it = user_base.begin(); it != user_base.end(); it++) {
+    if (it->first == user_id)
+      return true;
+  }
+  return false;
+}
+
+/*
   Top-level routine for processing all HTTP POST requests.
  */
 void handle_post(http_request message) {
@@ -221,12 +233,10 @@ void handle_post(http_request message) {
     // Therefore we can sign the user in (add the user to the hashtable)
 
     // Check if user is already online
-    for (auto it = user_base.begin(); it != user_base.end(); it++) {
-      if (it->first == user_id) {
-        cout << "User is already online" << endl;
-        message.reply(status_codes::OK);
-        return;
-      }
+    if (bool online {find_user(user_id)}) {
+      cout << "User is already online" << endl;
+      message.reply(status_codes::OK);
+      return;
     }
 
     // If the user attempts to log in with the wrong credentials then it will return NotFound prior to this
@@ -244,6 +254,12 @@ void handle_post(http_request message) {
 
   if (paths[0] == sign_off_op) {
     
+    /*
+      Don't use the find_user function
+      Modify the find_user function instead so it will remove the user and return
+      If it does not return from that then the user is clearly not 'online'
+    */
+
     // Find the user; if found remove from hashtable
     for (auto it = user_base.begin(); it != user_base.end(); it++) {
       if (it->first == user_id) {
