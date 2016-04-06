@@ -172,6 +172,22 @@ bool find_user(string user_id) {
 }
 
 /*
+  Funtion returns the properties corresponding to the user in AuthTable
+  Returns tuple containing token, partition, row
+
+  Note: Only use this if find_user was already called and returned true
+        This will return empty strings if the user is not found
+*/
+tuple<string,string,string> get_user_properties(string user_id) {
+  for (auto it = user_base.begin(); it != user_base.end(); it++) {
+    if (it->first == user_id) {
+      return make_tuple(get<0>(it->second), get<1>(it->second), get<2>(it->second));
+    }
+  }
+  return make_tuple("", "", "");
+}
+
+/*
   Top-level routine for processing all HTTP POST requests.
  */
 void handle_post(http_request message) {
@@ -211,9 +227,9 @@ void handle_post(http_request message) {
     }
 
     // Store the information returned from AuthServer for token, associated partition and associated row
-    string user_token {auth_result.second["token"].as_string()};
-    string user_partition {auth_result.second["DataPartition"].as_string()};
-    string user_row {auth_result.second["DataRow"].as_string()};
+    const string user_token {auth_result.second["token"].as_string()};
+    const string user_partition {auth_result.second["DataPartition"].as_string()};
+    const string user_row {auth_result.second["DataRow"].as_string()};
 
     // Check the DataTable if the entity corresponding to the partition and data obtained from AuthServer exists
     pair<status_code,value> basic_result {do_request (methods::GET,
@@ -309,8 +325,24 @@ void handle_put(http_request message) {
   const string friend_country {paths[2]};
   const string friend_name {paths[3]};
 
+  // Cant do if (! bool online{find_user(user_id)}) so use this
+  // Check if user has an active session
+  bool online{find_user(user_id)};
+  if (! online) {
+    cout << user_id << " does not have an active session" << endl;
+    message.reply(status_codes::Forbidden);
+    return;    
+  }
+
+  // Beyond this point it is assumed that the user has an active session (user is online)
+
+  tuple<string,string,string> user_creds {get_user_properties(user_id)};
+  const string user_token {get<0>(user_creds)};
+  const string user_partition {get<1>(user_creds)};
+  const string user_row {get<2>(user_creds)};
+
   if (paths[0] == add_friend_op) {
-    // TODO
+    
   }
 
   if (paths[0] == un_friend_op) {
