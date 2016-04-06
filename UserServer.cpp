@@ -97,6 +97,10 @@ const string un_friend_op {"UnFriend"};
 const string update_status {"UpdateStatus"};
 const string read_friend_list {"ReadFriendList"};
 
+const string prop_friends {"Friends"};
+const string prop_status {"Status"};
+const string prop_updates {"Updates"};
+
 const string basic_url {"http://localhost:34568/"};
 const string auth_url {"http://localhost:34570/"};
 
@@ -212,12 +216,12 @@ void handle_post(http_request message) {
 
     // Check the AuthTable and obtain a token for the session if the user is found
     pair<status_code,value> auth_result {do_request (methods::GET,
-                                                    auth_url +
-                                                    get_update_data_op + "/" +
-                                                    user_id,
-                                                    value::object (vector<pair<string,value>>
-                                                                    {make_pair("Password",
-                                                                               value::string(password))})
+                                                     auth_url +
+                                                     get_update_data_op + "/" +
+                                                     user_id,
+                                                     value::object (vector<pair<string,value>>
+                                                                      {make_pair("Password",
+                                                                                 value::string(password))})
                                                     )};
 
     // If AuthServer gives anything other than OK return NotFound; if OK then continue on
@@ -233,11 +237,11 @@ void handle_post(http_request message) {
 
     // Check the DataTable if the entity corresponding to the partition and data obtained from AuthServer exists
     pair<status_code,value> basic_result {do_request (methods::GET,
-                                                     basic_url +
-                                                     read_entity_admin+ "/" +
-                                                     data_table_name + "/" +
-                                                     user_partition + "/" +
-                                                     user_row)};
+                                                      basic_url +
+                                                      read_entity_admin+ "/" +
+                                                      data_table_name + "/" +
+                                                      user_partition + "/" +
+                                                      user_row)};
 
     // If BasicServer does not return OK with the above request then the user is not in DataTable
     if (basic_result.first != status_codes::OK) {
@@ -342,7 +346,34 @@ void handle_put(http_request message) {
   const string user_row {get<2>(user_creds)};
 
   if (paths[0] == add_friend_op) {
-    
+
+    // Obtain the users friends list through an authorized GET using BasicServer
+    pair<status_code,value> friend_prop {do_request (methods::GET,
+                                                     basic_url +
+                                                     read_entity_auth + "/" +
+                                                     data_table_name + "/" +
+                                                     user_token + "/" +
+                                                     user_partition + "/" +
+                                                     user_row)};
+
+    // Get a string that represents the users friend list
+    string friend_list {get_json_object_prop(friend_prop.second, prop_friends)};
+
+    // Take the parameters and format them so they can be added to the friend list
+    // Takes the form "country;Name"
+    const string friend_to_add {friend_country+";"+friend_name};
+
+    // Add new friend to the string for the users friend list
+    // NOTE: Assume the friend list is in standard form
+    friend_list = friend_list+"|"+friend_to_add;
+
+    /*
+      STILL MISSING: PACKAGE PROPERTIES BACK AS JSON VALUE
+                     UPDATE ENTITY WITH NEW SET OF PROPERTIES
+
+                     We didn't do UpdateProperty from Assign1 so we cant just update the property
+                     We need to update the entire entity
+    */
   }
 
   if (paths[0] == un_friend_op) {
