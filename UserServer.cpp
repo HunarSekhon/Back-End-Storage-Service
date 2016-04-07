@@ -103,6 +103,7 @@ const string prop_updates {"Updates"};
 
 const string basic_url {"http://localhost:34568/"};
 const string auth_url {"http://localhost:34570/"};
+const string push_url {"http://localhost:34574/"};
 
 const string auth_table_name {"AuthTable"};
 const string data_table_name {"DataTable"};
@@ -336,6 +337,7 @@ void handle_get(http_request message) {
                                                      user_token + "/" +
                                                      user_partition + "/" +
                                                      user_row)};
+    assert(user_prop.first == status_codes::OK);
 
     // Unpack the properties associated with the entity into an unordered map of strings
     unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
@@ -398,23 +400,24 @@ void handle_put(http_request message) {
                                                    user_token + "/" +
                                                    user_partition + "/" +
                                                    user_row)};
+  assert(user_prop.first == status_codes::OK);
 
   // Unpack the properties associated with the entity into an unordered map of strings
   unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
+
+  // Obtain the friend list (which is already a string)
+  string friend_list;
+  for (auto it = properties.begin(); it != properties.end(); it++) {
+    if (it->first == prop_friends)
+      friend_list = it->second;
+    // Else it will iterate until friends is found
+    // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+  }
 
   if (paths[0] == add_friend_op) {
 
     const string friend_country {paths[2]};
     const string friend_name {paths[3]};
-
-    // Obtain the friend list (as a string rather than the vector named user_friends)
-    string friend_list;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_friends)
-        friend_list = it->second;
-      // Else it will iterate until friends is found
-      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-    }
 
     // Check if the friend to add is already a friend
     friends_list_t user_friends {parse_friends_list(friend_list)};
@@ -453,7 +456,7 @@ void handle_put(http_request message) {
     */
 
     // Make a request to the BasicServer to update the property "Friends" for our user
-    pair<status_code,value> update_properties {do_request (methods::GET,
+    pair<status_code,value> update_properties {do_request (methods::PUT,
                                                    basic_url +
                                                    update_entity_auth + "/" +
                                                    data_table_name + "/" +
@@ -461,6 +464,7 @@ void handle_put(http_request message) {
                                                    user_partition + "/" +
                                                    user_row,
                                                    new_properties)};
+    assert(update_properties.first == status_codes::OK);
 
     // Return what the PUT method gives; it should be OK and update the entity
     message.reply(update_properties.first);
@@ -471,15 +475,6 @@ void handle_put(http_request message) {
 
     const string friend_country {paths[2]};
     const string friend_name {paths[3]};
-
-    // Obtain the friend list (which is already a string)
-    string friend_list;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_friends)
-        friend_list = it->second;
-      // Else it will iterate until friends is found
-      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-    }
 
     // Check if the friend to be deleted is in the list
     friends_list_t user_friends {parse_friends_list(friend_list)};
@@ -499,7 +494,7 @@ void handle_put(http_request message) {
         value new_properties {build_json_value(new_friend_properties)};
 
         // Make a request to the BasicServer to update the property "Friends" for our user
-        pair<status_code,value> update_properties {do_request (methods::GET,
+        pair<status_code,value> update_properties {do_request (methods::PUT,
                                                        basic_url +
                                                        update_entity_auth + "/" +
                                                        data_table_name + "/" +
@@ -507,6 +502,7 @@ void handle_put(http_request message) {
                                                        user_partition + "/" +
                                                        user_row,
                                                        new_properties)};
+        assert(update_properties.first == status_codes::OK);
 
         // Return what the PUT method gives; it should be OK and update the entity
         message.reply(update_properties.first);
@@ -523,8 +519,52 @@ void handle_put(http_request message) {
 
   if (paths[0] == update_status_op) {
 
-    const string user_status {paths[2]};
-    // TODO
+    const string user_new_status {paths[2]};
+    
+    /*
+    // Obtain the Status property of the user as a string
+    string user_current_status;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == prop_status)
+        user_current_status = it->second;
+      // Else it will continue to iterate through the properties until the Status property is found
+      // Status should be a property as there is no "NotFound" return given in the specification
+    }
+
+    // Change the status string
+    user_current_status = user_new_status;
+    */
+
+    // Build a new json value for the property "Status" using the edited status
+    pair<string,string> new_status_properties {make_pair (prop_status, user_new_status)};
+    value new_properties {build_json_value(new_status_properties)};
+
+    // Make a request to the BasicServer to update the property "Status" for our user
+    pair<status_code,value> update_status {do_request (methods::PUT,
+                                                       basic_url +
+                                                       update_entity_auth + "/" +
+                                                       data_table_name + "/" +
+                                                       user_token + "/" +
+                                                       user_partition + "/" +
+                                                       user_row,
+                                                       new_properties)};
+    assert(update_status.first == status_codes::OK);
+
+    // Build a new json value for the property "Friends"
+    pair<string,string> friend_properties {make_pair (prop_friends, friend_list)};
+    value users_friends_to_update {build_json_value(friend_properties)};
+
+    // Call PushServer to place the users new updated status into their friends "Updates" properties
+    pair<status_code,value> push_status {do_request (methods::POST,
+                                                     push_url +
+                                                     user_partition + "/" +
+                                                     user_row + "/" +
+                                                     user_new_status,
+                                                     users_friends_to_update)};
+    assert(update_status.first == status_codes::OK);
+
+    message.reply(push_status.first);
+    return;
   }
 
   // No more accepted commands beyond this point
