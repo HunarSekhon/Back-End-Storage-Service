@@ -436,7 +436,12 @@ void handle_put(http_request message) {
     string friend_to_add {friend_country+";"+friend_name};
 
     // Add friend to the end of the list; assume the friend list is in standard form ("|" is only used inbetween friends and not added to the end of the list)
-    friend_list = friend_list+"|"+friend_to_add;
+    // If the vector containing the friends is empty then add without "|" because there is nothing to separate yet
+    // If the vector containing the friends is non empty then add with "|" to separate existing friends and the new friend
+    if (user_friends.size() == 0)
+      friend_list = friend_to_add;
+    else
+      friend_list = friend_list+"|"+friend_to_add;
 
     // Build a new json value for the property "Friends" using the edited friend list
     pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
@@ -562,17 +567,16 @@ void handle_put(http_request message) {
                                                        user_row + "/" +
                                                        user_new_status,
                                                        users_friends_to_update)};
+    assert(update_status.first == status_codes::OK);
+    message.reply(push_status.first);
+    return;
+
     }
     catch (const web::uri_exception& e) {
       cout << "PushServer error: " << e.what() << endl;
       message.reply(status_codes::ServiceUnavailable);
+      return;
     }
-
-    // Return from PushServer should be OK since it can only send OK as a response
-    assert(update_status.first == status_codes::OK);
-
-    message.reply(push_status.first);
-    return;
   }
 
   // No more accepted commands beyond this point
