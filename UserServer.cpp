@@ -97,6 +97,8 @@ const string un_friend_op {"UnFriend"};
 const string update_status_op {"UpdateStatus"};
 const string read_friend_list_op {"ReadFriendList"};
 
+const string push_status_op {"PushStatus"};
+
 const string prop_friends {"Friends"};
 const string prop_status {"Status"};
 const string prop_updates {"Updates"};
@@ -511,6 +513,7 @@ void handle_put(http_request message) {
       // Call PushServer to place the users new updated status into their friends "Updates" properties
       pair<status_code,value> push_status {do_request (methods::POST,
                                                        push_url +
+                                                       push_status_op + "/" +
                                                        user_partition + "/" +
                                                        user_row + "/" +
                                                        user_new_status,
