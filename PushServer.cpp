@@ -86,6 +86,71 @@ const string update_property_admin {"UpdatePropertyAdmin"};
 
 const string push_status_op {"PushStatus"};
 
+const string prop_friends {"Friends"};
+const string prop_status {"Status"};
+const string prop_updates {"Updates"};
+
+const string basic_url {"http://localhost:34568/"};
+const string auth_url {"http://localhost:34570/"};
+const string push_url {"http://localhost:34574/"};
+
+const string auth_table_name {"AuthTable"};
+const string data_table_name {"DataTable"};
+
+
+/*
+  Return true if an HTTP request has a JSON body
+
+  This routine canbe called multiple times on the same message.
+*/
+/*bool has_json_body (http_request message) {
+  return message.headers()["Content-type"] == "application/json";
+}*/
+
+/*
+  Given an HTTP message with a JSON body, return the JSON
+  body as an unordered map of strings to strings.
+
+  If the message has no JSON body, return an empty map.
+
+  THIS ROUTINE CAN ONLY BE CALLED ONCE FOR A GIVEN MESSAGE
+  (see http://microsoft.github.io/cpprestsdk/classweb_1_1http_1_1http__request.html#ae6c3d7532fe943de75dcc0445456cbc7
+  for source of this limit).
+
+  Note that all types of JSON values are returned as strings.
+  Use C++ conversion utilities to convert to numbers or dates
+  as necessary.
+ */
+unordered_map<string,string> get_json_body(http_request message) {  
+  unordered_map<string,string> results {};
+  const http_headers& headers {message.headers()};
+  auto content_type (headers.find("Content-Type"));
+  if (content_type == headers.end() ||
+      content_type->second != "application/json")
+    return results;
+
+  value json{};
+  message.extract_json(true)
+    .then([&json](value v) -> bool
+    {
+            json = v;
+      return true;
+    })
+    .wait();
+
+  if (json.is_object()) {
+    for (const auto& v : json.as_object()) {
+      if (v.second.is_string()) {
+  results[v.first] = v.second.as_string();
+      }
+      else {
+  results[v.first] = v.second.serialize();
+      }
+    }
+  }
+  return results;
+}
+
 /*
   Top-level routine for processing all HTTP POST requests.
  */
@@ -95,7 +160,64 @@ void handle_post(http_request message) {
   auto paths = uri::split_path(path);
 
   if (paths[0] == push_status_op) {
-    // TODO
+
+    const string user_status {paths[2]};
+
+    // Extract info from original message to obtain the password
+    unordered_map<string,string> json_body {get_json_body (message)};
+    string friend_list {json_body["Friends"]};
+
+    // Obtain a vector containing all the information about the users friends
+    friends_list_t user_friends {parse_friends_list(friend_list)};
+
+    string friend_country, friend_name;
+
+    auto it = user_friends.begin();
+    while (it != user_friends.end()) {
+
+      // Get the partition and the row of the friend
+      friend_country = it->first;
+      friend_name = it->second;
+
+      // Obtain the users properties through an admin GET using BasicServer
+      pair<status_code,value> friend_prop {do_request (methods::GET,
+                                                       basic_url +
+                                                       read_entity_admin + "/" +
+                                                       data_table_name + "/" +
+                                                       friend_country + "/" +
+                                                       friend_name)};
+      // Dont assert because no guarantees the friends are in the table
+      // Check if the friend was in DataTable; should return OK if was inside
+      if (friend_prop.first == status_codes::OK) {
+
+        // Obtain a string correspondin to the friends current value for the property "Updates"
+        string friend_updates {get_json_object_prop(friend_prop.second, prop_updates)};
+
+        // Given the string for the friends current "Updates" property, concatenate the new status and add "\n" to the end of it
+        friend_updates = friend_updates+user_status+"\n";
+
+        // Build a new json value for the property "Friends" using the edited friend list
+        pair<string,string> new_updates_property {make_pair(prop_updates, friend_updates)};
+        value new_properties {build_json_value(new_updates_property)};
+
+        // Make a request to the BasicServer to update the property "Updates" for the friend
+        pair<status_code,value> update_properties {do_request (methods::PUT,
+                                                       basic_url +
+                                                       update_entity_admin + "/" +
+                                                       data_table_name + "/" +
+                                                       friend_country + "/" +
+                                                       friend_name,
+                                                       new_properties)};
+        assert(update_properties.first == status_codes::OK);
+      }
+
+      // Go to next friend
+      it++;
+    }
+
+    // After the while loop has completed, PushServer has made an attempt to update the property "Updates" for all friends of the user
+    message.reply(status_codes::OK);
+    return;
   }
 
   // No more accepted commands beyond this point
