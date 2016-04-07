@@ -567,6 +567,7 @@ void handle_put(http_request message) {
                                                        user_row + "/" +
                                                        user_new_status,
                                                        users_friends_to_update)};
+    // Only return for push server is OK
     assert(update_status.first == status_codes::OK);
     message.reply(push_status.first);
     return;
