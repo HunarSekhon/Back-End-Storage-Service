@@ -84,6 +84,7 @@ const string get_update_token_op {"GetUpdateToken"};
 const string add_property_admin {"AddPropertyAdmin"};
 const string update_property_admin {"UpdatePropertyAdmin"};
 
+const string push_status_op {"PushStatus"};
 
 /*
   Top-level routine for processing all HTTP POST requests.
@@ -91,6 +92,16 @@ const string update_property_admin {"UpdatePropertyAdmin"};
 void handle_post(http_request message) {
   string path {uri::decode(message.relative_uri().path())};
   cout << endl << "**** POST " << path << endl;
+  auto paths = uri::split_path(path);
+
+  if (paths[0] == push_status_op) {
+    // TODO
+  }
+
+  // No more accepted commands beyond this point
+  // Return BadRequest due to possible malformed request
+  message.reply(status_codes::BadRequest);
+  return;
 }
 
 /*
