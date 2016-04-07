@@ -339,6 +339,7 @@ void handle_get(http_request message) {
                                                      user_row)};
     assert(user_prop.first == status_codes::OK);
 
+    /*
     // Unpack the properties associated with the entity into an unordered map of strings
     unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
 
@@ -350,6 +351,9 @@ void handle_get(http_request message) {
       // Else it will iterate until friends is found
       // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
     }
+    */
+
+    string friend_list {get_json_object_prop(user_prop.second, prop_friends)};  
 
     // Pair "Friends" with a string that contains the friends list then package it into a json value
     pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
@@ -402,6 +406,7 @@ void handle_put(http_request message) {
                                                    user_row)};
   assert(user_prop.first == status_codes::OK);
 
+  /*
   // Unpack the properties associated with the entity into an unordered map of strings
   unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
 
@@ -413,6 +418,9 @@ void handle_put(http_request message) {
     // Else it will iterate until friends is found
     // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
   }
+  */
+
+  string friend_list {get_json_object_prop(user_prop.second, prop_friends)};
 
   if (paths[0] == add_friend_op) {
 
@@ -432,16 +440,11 @@ void handle_put(http_request message) {
       // If the friend is not found in the list then it will be added from from the code below
     }
 
-    // Construct string for the friend to add
-    string friend_to_add {friend_country+";"+friend_name};
+    // If this far then friend was not found in the list, add friend
+    user_friends.push_back(make_pair(friend_country,friend_name));
 
-    // Add friend to the end of the list; assume the friend list is in standard form ("|" is only used inbetween friends and not added to the end of the list)
-    // If the vector containing the friends is empty then add without "|" because there is nothing to separate yet
-    // If the vector containing the friends is non empty then add with "|" to separate existing friends and the new friend
-    if (user_friends.size() == 0)
-      friend_list = friend_to_add;
-    else
-      friend_list = friend_list+"|"+friend_to_add;
+    // Update the string containing the friend list
+    friend_list = friends_list_to_string(user_friends);
 
     // Build a new json value for the property "Friends" using the edited friend list
     pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
