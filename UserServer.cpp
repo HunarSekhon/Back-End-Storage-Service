@@ -283,7 +283,7 @@ void handle_post(http_request message) {
     // Find the user; if found remove from hashtable
     for (auto it = user_base.begin(); it != user_base.end(); it++) {
       if (it->first == user_id) {
-        it = user_base.erase(it);
+        user_base.erase(it);
         cout << user_id << " is now offline" << endl;
         cout << "There are " << user_base.size() << " users still online" << endl;
         message.reply(status_codes::OK);
@@ -345,31 +345,28 @@ void handle_put(http_request message) {
   const string user_partition {get<1>(user_creds)};
   const string user_row {get<2>(user_creds)};
 
+  // Obtain the users properties through an authorized GET using BasicServer
+  pair<status_code,value> user_prop {do_request (methods::GET,
+                                                   basic_url +
+                                                   read_entity_auth + "/" +
+                                                   data_table_name + "/" +
+                                                   user_token + "/" +
+                                                   user_partition + "/" +
+                                                   user_row)};
+
+  // Unpack the properties associated with the entity into an unordered map of strings
+  unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
+
+  // Obtain the friend list (which is already a string)
+  string friend_list;
+  for (auto it = properties.begin(); it != properties.end(); it++) {
+    if (it->first == prop_friends)
+      friend_list = it->second;
+    // Else it will iterate until friends is found
+    // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+  }
+
   if (paths[0] == add_friend_op) {
-
-    // Obtain the users properties through an authorized GET using BasicServer
-    pair<status_code,value> user_prop {do_request (methods::GET,
-                                                     basic_url +
-                                                     read_entity_auth + "/" +
-                                                     data_table_name + "/" +
-                                                     user_token + "/" +
-                                                     user_partition + "/" +
-                                                     user_row)};
-
-    // Unpack the properties associated with the entity into an unordered map of strings
-    unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
-
-    // Obtain the friend list (which is already a string)
-    string friend_list;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_friends)
-        friend_list = it->second;
-      // Else it will iterate until friends is found
-      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-    }
-
-    // Construct string for the friend to add
-    string friend_to_add {friend_country+";"+friend_name};
 
     // Check if the friend to add is already a friend
     friends_list_t check_friends {parse_friends_list(friend_list)};
@@ -380,7 +377,12 @@ void handle_put(http_request message) {
         message.reply(status_codes::OK);
         return;
       }
+      // Else it will iterate until the friend is found
+      // If the friend is not found in the list then it will be added from from the code below
     }
+
+    // Construct string for the friend to add
+    string friend_to_add {friend_country+";"+friend_name};
 
     // Add friend to the end of the list; assume the friend list is in standard form ("|" is only used inbetween friends and not added to the end of the list)
     friend_list = friend_list+"|"+friend_to_add;
@@ -418,7 +420,45 @@ void handle_put(http_request message) {
   }
 
   if (paths[0] == un_friend_op) {
-    // TODO
+
+    // Check if the friend to be deleted is in the list
+    friends_list_t check_friends {parse_friends_list(friend_list)};
+
+    for (auto it = check_friends.begin(); it != check_friends.end(); it++) {
+      // If found friend to remove
+      if (it->first == friend_country && it->second == friend_name) {
+    
+        // Remove friend
+        check_friends.erase(it);
+    
+        // Update the friends list
+        friend_list = friends_list_to_string(check_friends);
+    
+        // Build a new json value for the property "Friends" using the edited friend list
+        pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
+        value new_properties {build_json_value(new_friend_list)};
+
+        // Make a request to the BasicServer to update the property "Friends" for our user
+        pair<status_code,value> update_properties {do_request (methods::GET,
+                                                       basic_url +
+                                                       update_entity_auth + "/" +
+                                                       data_table_name + "/" +
+                                                       user_token + "/" +
+                                                       user_partition + "/" +
+                                                       user_row,
+                                                       new_properties)};
+
+        // Return what the PUT method gives; it should be OK and update the entity
+        message.reply(update_properties.first);
+        return;
+      }
+      // Else iterate until the friend is found or the list has been exhausted
+    }
+
+    // If the list has been exhausted then the friend is not in the list
+    cout << friend_name << " from " << friend_country << " was not in your friends list" << endl;
+    message.reply(status_codes::OK);
+    return;
   }
 
   // No more accepted commands beyond this point
