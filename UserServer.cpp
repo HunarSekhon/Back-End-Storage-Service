@@ -94,8 +94,8 @@ const string sign_on_op {"SignOn"};
 const string sign_off_op {"SignOff"};
 const string add_friend_op {"AddFriend"};
 const string un_friend_op {"UnFriend"};
-const string update_status {"UpdateStatus"};
-const string read_friend_list {"ReadFriendList"};
+const string update_status_op {"UpdateStatus"};
+const string read_friend_list_op {"ReadFriendList"};
 
 const string prop_friends {"Friends"};
 const string prop_status {"Status"};
@@ -321,7 +321,7 @@ void handle_get(http_request message) {
     return;    
   }
 
-  if (paths[0] == read_friend_list) {
+  if (paths[0] == read_friend_list_op) {
 
     tuple<string,string,string> user_creds {get_user_properties(user_id)};
     const string user_token {get<0>(user_creds)};
@@ -371,10 +371,8 @@ void handle_put(http_request message) {
   cout << endl << "**** PUT " << path << endl;
   auto paths = uri::split_path(path);
 
-  // Both operations AddFriend and UnFriend use the same parameters
+  // All three operations have user_id as a parameter
   const string user_id {paths[1]};
-  const string friend_country {paths[2]};
-  const string friend_name {paths[3]};
 
   // Cant do if (! bool online{find_user(user_id)}) so use this
   // Check if user has an active session
@@ -415,10 +413,13 @@ void handle_put(http_request message) {
 
   if (paths[0] == add_friend_op) {
 
-    // Check if the friend to add is already a friend
-    friends_list_t check_friends {parse_friends_list(friend_list)};
+    const string friend_country {paths[2]};
+    const string friend_name {paths[3]};
 
-    for (auto it = check_friends.begin(); it != check_friends.end(); it++) {
+    // Check if the friend to add is already a friend
+    friends_list_t user_friends {parse_friends_list(friend_list)};
+
+    for (auto it = user_friends.begin(); it != user_friends.end(); it++) {
       if (it->first == friend_country && it->second == friend_name) {
         cout << friend_name << " from " << friend_country << " is already your friend" << endl;
         message.reply(status_codes::OK);
@@ -468,18 +469,21 @@ void handle_put(http_request message) {
 
   if (paths[0] == un_friend_op) {
 
-    // Check if the friend to be deleted is in the list
-    friends_list_t check_friends {parse_friends_list(friend_list)};
+    const string friend_country {paths[2]};
+    const string friend_name {paths[3]};
 
-    for (auto it = check_friends.begin(); it != check_friends.end(); it++) {
+    // Check if the friend to be deleted is in the list
+    friends_list_t user_friends {parse_friends_list(friend_list)};
+
+    for (auto it = user_friends.begin(); it != user_friends.end(); it++) {
       // If found friend to remove
       if (it->first == friend_country && it->second == friend_name) {
     
         // Remove friend
-        check_friends.erase(it);
+        user_friends.erase(it);
     
         // Update the friends list
-        friend_list = friends_list_to_string(check_friends);
+        friend_list = friends_list_to_string(user_friends);
     
         // Build a new json value for the property "Friends" using the edited friend list
         pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
@@ -506,6 +510,12 @@ void handle_put(http_request message) {
     cout << friend_name << " from " << friend_country << " was not in your friends list" << endl;
     message.reply(status_codes::OK);
     return;
+  }
+
+  if (paths[0] == update_status_op) {
+
+    const string user_status {paths[2]};
+    // TODO
   }
 
   // No more accepted commands beyond this point
