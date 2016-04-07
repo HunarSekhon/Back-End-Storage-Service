@@ -554,13 +554,21 @@ void handle_put(http_request message) {
     pair<string,string> friend_properties {make_pair (prop_friends, friend_list)};
     value users_friends_to_update {build_json_value(friend_properties)};
 
-    // Call PushServer to place the users new updated status into their friends "Updates" properties
-    pair<status_code,value> push_status {do_request (methods::POST,
-                                                     push_url +
-                                                     user_partition + "/" +
-                                                     user_row + "/" +
-                                                     user_new_status,
-                                                     users_friends_to_update)};
+    try {
+      // Call PushServer to place the users new updated status into their friends "Updates" properties
+      pair<status_code,value> push_status {do_request (methods::POST,
+                                                       push_url +
+                                                       user_partition + "/" +
+                                                       user_row + "/" +
+                                                       user_new_status,
+                                                       users_friends_to_update)};
+    }
+    catch (const web::uri_exception& e) {
+      cout << "PushServer error: " << e.what() << endl;
+      message.reply(status_codes::ServiceUnavailable);
+    }
+
+    // Return from PushServer should be OK since it can only send OK as a response
     assert(update_status.first == status_codes::OK);
 
     message.reply(push_status.first);
