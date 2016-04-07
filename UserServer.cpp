@@ -429,6 +429,15 @@ void handle_put(http_request message) {
       // If the friend is not found in the list then it will be added from from the code below
     }
 
+    // Obtain the friend list (as a string rather than the vector named user_friends)
+    string friend_list;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == prop_friends)
+        friend_list = it->second;
+      // Else it will iterate until friends is found
+      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+    }
+
     // Construct string for the friend to add
     string friend_to_add {friend_country+";"+friend_name};
 
@@ -482,8 +491,8 @@ void handle_put(http_request message) {
         // Remove friend
         user_friends.erase(it);
     
-        // Update the friends list
-        friend_list = friends_list_to_string(user_friends);
+        // Obtain a string containing the new list of friends after removing the specified friend
+        string friend_list {friends_list_to_string(user_friends)};
     
         // Build a new json value for the property "Friends" using the edited friend list
         pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
