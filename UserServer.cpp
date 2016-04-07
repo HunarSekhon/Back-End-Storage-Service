@@ -339,20 +339,6 @@ void handle_get(http_request message) {
                                                      user_row)};
     assert(user_prop.first == status_codes::OK);
 
-    /*
-    // Unpack the properties associated with the entity into an unordered map of strings
-    unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
-
-    // Obtain the friend list (which is already a string)
-    string friend_list;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_friends)
-        friend_list = it->second;
-      // Else it will iterate until friends is found
-      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-    }
-    */
-
     string friend_list {get_json_object_prop(user_prop.second, prop_friends)};  
 
     // Pair "Friends" with a string that contains the friends list then package it into a json value
@@ -406,20 +392,6 @@ void handle_put(http_request message) {
                                                    user_row)};
   assert(user_prop.first == status_codes::OK);
 
-  /*
-  // Unpack the properties associated with the entity into an unordered map of strings
-  unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
-
-  // Obtain the friend list (which is already a string)
-  string friend_list;
-  for (auto it = properties.begin(); it != properties.end(); it++) {
-    if (it->first == prop_friends)
-      friend_list = it->second;
-    // Else it will iterate until friends is found
-    // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-  }
-  */
-
   string friend_list {get_json_object_prop(user_prop.second, prop_friends)};
 
   if (paths[0] == add_friend_op) {
@@ -449,19 +421,6 @@ void handle_put(http_request message) {
     // Build a new json value for the property "Friends" using the edited friend list
     pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
     value new_properties {build_json_value(new_friend_properties)};
-
-    /*
-    // Repackage the properties and their values into a pair and push them into a vector
-    vector<pair<string,string>> rebuild;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      pair<string,string> props {make_pair (it->first, it->second)};
-      rebuild.push_back(props);
-    }
-    
-
-    // Use the new vector and build a json value from it containing the updated properties
-    value new_properties {build_json_value(rebuild)};
-    */
 
     // Make a request to the BasicServer to update the property "Friends" for our user
     pair<status_code,value> update_properties {do_request (methods::PUT,
@@ -528,20 +487,6 @@ void handle_put(http_request message) {
   if (paths[0] == update_status_op) {
 
     const string user_new_status {paths[2]};
-    
-    /*
-    // Obtain the Status property of the user as a string
-    string user_current_status;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_status)
-        user_current_status = it->second;
-      // Else it will continue to iterate through the properties until the Status property is found
-      // Status should be a property as there is no "NotFound" return given in the specification
-    }
-
-    // Change the status string
-    user_current_status = user_new_status;
-    */
 
     // Build a new json value for the property "Status" using the edited status
     pair<string,string> new_status_properties {make_pair (prop_status, user_new_status)};
