@@ -488,7 +488,7 @@ void handle_put(http_request message) {
 
   if (paths[0] == update_status_op) {
 
-    const string user_new_status {paths[2]};
+    const string user_new_status {paths[1]};
 
     // Build a new json value for the property "Status" using the edited status
     pair<string,string> new_status_properties {make_pair (prop_status, user_new_status)};
