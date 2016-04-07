@@ -350,8 +350,8 @@ void handle_get(http_request message) {
     }
 
     // Pair "Friends" with a string that contains the friends list then package it into a json value
-    pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
-    value json_friends {build_json_value(new_friend_list)};
+    pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
+    value json_friends {build_json_value(new_friend_properties)};
 
     message.reply(status_codes::OK,json_friends);
     return;
@@ -407,6 +407,15 @@ void handle_put(http_request message) {
     const string friend_country {paths[2]};
     const string friend_name {paths[3]};
 
+    // Obtain the friend list (as a string rather than the vector named user_friends)
+    string friend_list;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == prop_friends)
+        friend_list = it->second;
+      // Else it will iterate until friends is found
+      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+    }
+
     // Check if the friend to add is already a friend
     friends_list_t user_friends {parse_friends_list(friend_list)};
 
@@ -420,15 +429,6 @@ void handle_put(http_request message) {
       // If the friend is not found in the list then it will be added from from the code below
     }
 
-    // Obtain the friend list (as a string rather than the vector named user_friends)
-    string friend_list;
-    for (auto it = properties.begin(); it != properties.end(); it++) {
-      if (it->first == prop_friends)
-        friend_list = it->second;
-      // Else it will iterate until friends is found
-      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-    }
-
     // Construct string for the friend to add
     string friend_to_add {friend_country+";"+friend_name};
 
@@ -436,8 +436,8 @@ void handle_put(http_request message) {
     friend_list = friend_list+"|"+friend_to_add;
 
     // Build a new json value for the property "Friends" using the edited friend list
-    pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
-    value new_properties {build_json_value(new_friend_list)};
+    pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
+    value new_properties {build_json_value(new_friend_properties)};
 
     /*
     // Repackage the properties and their values into a pair and push them into a vector
@@ -472,6 +472,15 @@ void handle_put(http_request message) {
     const string friend_country {paths[2]};
     const string friend_name {paths[3]};
 
+    // Obtain the friend list (which is already a string)
+    string friend_list;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == prop_friends)
+        friend_list = it->second;
+      // Else it will iterate until friends is found
+      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+    }
+
     // Check if the friend to be deleted is in the list
     friends_list_t user_friends {parse_friends_list(friend_list)};
 
@@ -482,12 +491,12 @@ void handle_put(http_request message) {
         // Remove friend
         user_friends.erase(it);
     
-        // Obtain a string containing the new list of friends after removing the specified friend
-        string friend_list {friends_list_to_string(user_friends)};
+        // Update the string containing the new list of friends after removing the specified friend
+        friend_list = friends_list_to_string(user_friends);
     
         // Build a new json value for the property "Friends" using the edited friend list
-        pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
-        value new_properties {build_json_value(new_friend_list)};
+        pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
+        value new_properties {build_json_value(new_friend_properties)};
 
         // Make a request to the BasicServer to update the property "Friends" for our user
         pair<status_code,value> update_properties {do_request (methods::GET,
