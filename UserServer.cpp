@@ -310,6 +310,53 @@ void handle_get(http_request message) {
   cout << endl << "**** GET " << path << endl;
   auto paths = uri::split_path(path);
 
+  const string user_id {paths[0]};
+
+  // Cant do if (! bool online{find_user(user_id)}) so use this
+  // Check if user has an active session
+  bool online{find_user(user_id)};
+  if (! online) {
+    cout << user_id << " does not have an active session" << endl;
+    message.reply(status_codes::Forbidden);
+    return;    
+  }
+
+  if (paths[0] == read_friend_list) {
+
+    tuple<string,string,string> user_creds {get_user_properties(user_id)};
+    const string user_token {get<0>(user_creds)};
+    const string user_partition {get<1>(user_creds)};
+    const string user_row {get<2>(user_creds)};
+
+    // Obtain the users properties through an authorized GET using BasicServer
+    pair<status_code,value> user_prop {do_request (methods::GET,
+                                                     basic_url +
+                                                     read_entity_auth + "/" +
+                                                     data_table_name + "/" +
+                                                     user_token + "/" +
+                                                     user_partition + "/" +
+                                                     user_row)};
+
+    // Unpack the properties associated with the entity into an unordered map of strings
+    unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
+
+    // Obtain the friend list (which is already a string)
+    string friend_list;
+    for (auto it = properties.begin(); it != properties.end(); it++) {
+      if (it->first == prop_friends)
+        friend_list = it->second;
+      // Else it will iterate until friends is found
+      // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
+    }
+
+    // Pair "Friends" with a string that contains the friends list then package it into a json value
+    pair<string,string> new_friend_list {make_pair (prop_friends, friend_list)};
+    value json_friends {build_json_value(new_friend_list)};
+
+    message.reply(status_codes::OK,json_friends);
+    return;
+  }
+
   // No more accepted commands beyond this point
   // Return BadRequest due to possible malformed request
   message.reply(status_codes::BadRequest);
