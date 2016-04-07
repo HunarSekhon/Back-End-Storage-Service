@@ -402,15 +402,6 @@ void handle_put(http_request message) {
   // Unpack the properties associated with the entity into an unordered map of strings
   unordered_map<string,string> properties {unpack_json_object(user_prop.second)};
 
-  // Obtain the friend list (which is already a string)
-  string friend_list;
-  for (auto it = properties.begin(); it != properties.end(); it++) {
-    if (it->first == prop_friends)
-      friend_list = it->second;
-    // Else it will iterate until friends is found
-    // Friends should be a property and the specification does not have "NotFound" being a return so do nothing
-  }
-
   if (paths[0] == add_friend_op) {
 
     const string friend_country {paths[2]};
