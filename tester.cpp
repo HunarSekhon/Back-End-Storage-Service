@@ -1893,8 +1893,10 @@ SUITE(NotImplemented) {
   Associated with each user in the DataTAble are three proeprties: Friends, Status, Updates
                                                                    Each of the properties has an empty string as the property value to start with
 
-  The destructor does nothing
-  These three users (DJKhaled, Ted, Adebola) will remain in both tables and their properties will continue on
+  The destructor will remove all entities from both tables
+  Each new TEST_FIXTURE will be starting from scratch
+
+  You guys can change this if you want
 */
 
 class SetUpFixture {
@@ -2006,5 +2008,41 @@ public:
   }
 
   ~SetUpFixture() {
+    cout << "Removing DJ Khaled from DataTable" << endl;
+    int del_data_khaled {delete_entity (basic_url, data_table_name, "USA", "DJKhaled")};
+    if (del_data_khaled != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Removing Ted from DataTable" << endl;
+    int del_data_ted {delete_entity (basic_url, data_table_name, "Canada", "Ted")};
+    if (del_data_ted != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Removing Adebola from DataTable" << endl;
+    int del_data_adebola {delete_entity (basic_url, data_table_name, "Canada", "Adebola")};
+    if (del_data_adebola != status_codes::OK) {
+      throw std::exception();    
+  }
+
+    cout << "Removing DJ Khaled from AuthTable" << endl;
+    int del_auth_khaled {delete_entity (basic_url, auth_table_name, "USA", "DJKhaled")};
+    if (del_auth_khaled != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Removing Ted from AuthTable" << endl;
+    int del_auth_ted {delete_entity (basic_url, auth_table_name, "Canada", "Ted")};
+    if (del_auth_ted != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Removing Adebola from AuthTable" << endl;
+    int del_auth_adebola {delete_entity (basic_url, auth_table_name, "Canada", "Adebola")};
+    if (del_auth_adebola != status_codes::OK) {
+      throw std::exception();    
+    }
   }
 };
+
