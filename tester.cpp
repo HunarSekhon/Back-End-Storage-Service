@@ -1926,16 +1926,16 @@ public:
     }
 
     cout << "Creating AuthTable" << endl;
-    int create_auth_table {create_table(auth_url, auth_table_name)};
+    int create_auth_table {create_table(basic_url, auth_table_name)};
     cerr << "create result " << create_auth_table << endl;
     if (create_auth_table != status_codes::Created && create_auth_table != status_codes::Accepted) {
       throw std::exception();
     }
 
     vector<pair<string,value>> data_properties;
-    pair<string,value> friends_property {make_pair(property_friends,value::string(empty_string))};
-    pair<string,value> status_property {make_pair(property_status,value::string(empty_string))};
-    pair<string,value> updates_property {make_pair(property_updates,value::string(empty_string))};
+    pair<string,value> friends_property {make_pair("Friends",value::string(""))};
+    pair<string,value> status_property {make_pair("Status",value::string(""))};
+    pair<string,value> updates_property {make_pair("Updates",value::string(""))};
     data_properties.push_back(updates_property);
     data_properties.push_back(status_property);
     data_properties.push_back(friends_property);
@@ -1962,25 +1962,25 @@ public:
     }
 
     vector<pair<string,value>> auth_properties_khaled;
-    pair<string,value> password_property_khaled {make_pair(property_password,value::string(standard_password))};
-    pair<string,value> partition_property_khaled {make_pair(property_partition,value::string("USA"))};
-    pair<string,value> row_property_khaled {make_pair(property_row,value::string("DJKhaled"))};
+    pair<string,value> password_property_khaled {make_pair("Password",value::string("password"))};
+    pair<string,value> partition_property_khaled {make_pair("DataPartition",value::string("USA"))};
+    pair<string,value> row_property_khaled {make_pair("DataRow",value::string("DJKhaled"))};
     auth_properties_khaled.push_back(password_property_khaled);
     auth_properties_khaled.push_back(partition_property_khaled); 
     auth_properties_khaled.push_back(row_property_khaled);
     
     vector<pair<string,value>> auth_properties_ted;
-    pair<string,value> password_property_ted {make_pair(property_password,value::string(standard_password))};
-    pair<string,value> partition_property_ted {make_pair(property_partition,value::string("Canada"))};
-    pair<string,value> row_property_ted {make_pair(property_row,value::string("Ted"))};
+    pair<string,value> password_property_ted {make_pair("Password",value::string("password"))};
+    pair<string,value> partition_property_ted {make_pair("DataPartition",value::string("Canada"))};
+    pair<string,value> row_property_ted {make_pair("DataRow",value::string("Ted"))};
     auth_properties_ted.push_back(password_property_ted);
     auth_properties_ted.push_back(partition_property_ted);
     auth_properties_ted.push_back(row_property_ted);
     
     vector<pair<string,value>> auth_properties_adebola;
-    pair<string,value> password_property_adebola {make_pair(property_password,value::string(standard_password))};
-    pair<string,value> partition_property_adebola {make_pair(property_partition,value::string("Canada"))};
-    pair<string,value> row_property_adebola {make_pair(property_row,value::string("Ted"))};
+    pair<string,value> password_property_adebola {make_pair("Password",value::string("password"))};
+    pair<string,value> partition_property_adebola {make_pair("DataPartition",value::string("Canada"))};
+    pair<string,value> row_property_adebola {make_pair("DataRow",value::string("Ted"))};
     auth_properties_adebola.push_back(password_property_adebola);
     auth_properties_adebola.push_back(partition_property_adebola);
     auth_properties_adebola.push_back(row_property_adebola);
@@ -2046,21 +2046,120 @@ public:
   }
 };
 
-/* Compile issues
-SUITE(SignOn) {
-  TEST_FIXTURE(SetUpFixture, BadSignOn) {
+
+/*
+  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
     // Construct the password for the one and only DJKhaled
-    value wrong_password {build_json_object (vector<pair<string,string>> {make_pair(SetUpFixture::property_password,"ThisPasswordIsIncorrect")})};
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    cout << "**T1" << endl;
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> password_res {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+    cout << "**T2" << endl;
+
+    CHECK_EQUAL(status_codes::OK,password_res.first);
+  }
+*/
+
+//Compile issues
+SUITE(SignOn) {
+  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
 
     // Request to sign on as DJKhaled with the wrong password
     pair<status_code,value> password_res {
       do_request (methods::POST,
-                  SetUpFixture::user_url +
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,password_res.first);
+  }
+
+  TEST_FIXTURE(SetUpFixture, BadSignOn) {
+    // Construct the password for the one and only DJKhaled
+    value wrong_password {build_json_object (vector<pair<string,string>> {make_pair("Password","ThisPasswordIsIncorrect")})};
+
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> password_res {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
                   sign_on_op + "/" +
                   "DJKhaled",
                   wrong_password)};
 
     CHECK_EQUAL(status_codes::NotFound,password_res.first);
+  }
+
+  TEST_FIXTURE(SetUpFixture, UserNotFound) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> password_res {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "WiseGuy",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::NotFound,password_res.first);
+  }
+}
+
+SUITE(SignOff) {
+  TEST_FIXTURE(SetUpFixture, GoodSignOff) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  SetUpFixture::user_url +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+    
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  SetUpFixture::user_url +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off.first);
+  }
+}
+
+/*
+SUITE(BLANKS) {
+  TEST_FIXTURE(SetUpFixture,Blank) {
+  }
+
+  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    cout << "**T1" << endl;
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> password_res {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+    cout << "**T2" << endl;
+
+    CHECK_EQUAL(status_codes::OK,password_res.first);
   }
 }
 */
