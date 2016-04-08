@@ -514,7 +514,7 @@ void handle_get(http_request message) {
                 temp_vec.push_back(rowPair);
 
                 // Pass the vector to a function Ted made; returns a json value containing the properties above
-                value prop_return {build_json_value(tokenPair)};
+                value prop_return {build_json_value(temp_vec)};
 
                 message.reply(result.first, prop_return);
                 return;

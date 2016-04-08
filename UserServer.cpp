@@ -233,10 +233,10 @@ void handle_post(http_request message) {
       return;
     }
 
-    // Store the information returned from AuthServer for token, associated partition and associated row
-    const string user_token {auth_result.second["token"].as_string()};
-    const string user_partition {auth_result.second["DataPartition"].as_string()};
-    const string user_row {auth_result.second["DataRow"].as_string()};
+    //Store the information return from AuthServer for token, associated partition and associate row
+    const string user_token {get_json_object_prop(auth_result.second, "token")};
+    const string user_partition {get_json_object_prop(auth_result.second, "DataPartition")};
+    const string user_row {get_json_object_prop(auth_result.second, "DataRow")};
 
     // Check the DataTable if the entity corresponding to the partition and data obtained from AuthServer exists
     pair<status_code,value> basic_result {do_request (methods::GET,
