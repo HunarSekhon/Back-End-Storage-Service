@@ -1881,3 +1881,130 @@ SUITE(NotImplemented) {
     CHECK_EQUAL(status_codes::NotImplemented, result2.first);
   }
 }
+
+/*
+  This test class will insert three users (DJKhaled, Ted, Adebola) into both DataTable and AuthTable
+
+  Associated with each user in the AuthTable are three properties: Password, DataPartition, DataRow
+                                                                   Password is always "password" or standard_password
+                                                                   DataPartition is always the users country (DJKhaled = USA, TED/Adebola = Canada)
+                                                                   DataRow is always the users name (DJKhaled, Ted, Adebola)
+
+  Associated with each user in the DataTAble are three proeprties: Friends, Status, Updates
+                                                                   Each of the properties has an empty string as the property value to start with
+
+  The destructor does nothing
+  These three users (DJKhaled, Ted, Adebola) will remain in both tables and their properties will continue on
+*/
+
+class SetUpFixture {
+public:
+  static constexpr const char* basic_url {"http://localhost:34568/"};
+  static constexpr const char* auth_url {"http://localhost:34570/"};
+  static constexpr const char* user_url {"http://localhost:34572/"};
+  static constexpr const char* data_table_name {"DataTable"};
+  static constexpr const char* auth_table_name {"AuthTable"};
+  static constexpr const char* auth_table_partition {"Userid"};
+  static constexpr const char* property_friends {"Friends"};
+  static constexpr const char* property_status {"Status"};
+  static constexpr const char* property_updates {"Updates"};
+  static constexpr const char* property_partition {"DataPartition"};
+  static constexpr const char* property_row {"DataRow"};
+  static constexpr const char* property_password {"Password"};
+  static constexpr const char* standard_password {"password"};
+  static constexpr const char* empty_string {""};
+
+public:
+  SetUpFixture() {
+    cout << "\n\nCreating DataTable" << endl;
+    int create_data_table {create_table(basic_url, data_table_name)};
+    cerr << "create result " << create_data_table << endl;
+    if (create_data_table != status_codes::Created && create_data_table != status_codes::Accepted) {
+      throw std::exception();
+    }
+
+    cout << "Creating AuthTable" << endl;
+    int create_auth_table {create_table(auth_url, auth_table_name)};
+    cerr << "create result " << create_auth_table << endl;
+    if (create_auth_table != status_codes::Created && create_auth_table != status_codes::Accepted) {
+      throw std::exception();
+    }
+
+    vector<pair<string,value>> data_properties;
+    pair<string,value> friends_property {make_pair(property_friends,value::string(empty_string))};
+    pair<string,value> status_property {make_pair(property_status,value::string(empty_string))};
+    pair<string,value> updates_property {make_pair(property_updates,value::string(empty_string))};
+    data_properties.push_back(updates_property);
+    data_properties.push_back(status_property);
+    data_properties.push_back(friends_property);
+
+    cout << "Adding DJ Khaled into DataTable" << endl;
+    int put_data_khaled {put_entity (basic_url, data_table_name, "USA", "DJKhaled", data_properties)};
+    cerr << "put result " << put_data_khaled << endl;
+    if (put_data_khaled != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Adding Ted into DataTable" << endl;
+    int put_data_ted {put_entity (basic_url, data_table_name, "Canada", "Ted", data_properties)};
+    cerr << "put result " << put_data_ted << endl;
+    if (put_data_ted != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Adding Adebola into DataTable" << endl;
+    int add_data_adebola {put_entity (basic_url, data_table_name, "Canada", "Adebola", data_properties)};
+    cerr << "put result " << add_data_adebola << endl;
+    if (add_data_adebola != status_codes::OK) {
+      throw std::exception();
+    }
+
+    vector<pair<string,value>> auth_properties_khaled;
+    pair<string,value> password_property_khaled {make_pair(property_password,value::string(standard_password))};
+    pair<string,value> partition_property_khaled {make_pair(property_partition,value::string("USA"))};
+    pair<string,value> row_property_khaled {make_pair(property_row,value::string("DJKhaled"))};
+    auth_properties_khaled.push_back(password_property_khaled);
+    auth_properties_khaled.push_back(partition_property_khaled); 
+    auth_properties_khaled.push_back(row_property_khaled);
+    
+    vector<pair<string,value>> auth_properties_ted;
+    pair<string,value> password_property_ted {make_pair(property_password,value::string(standard_password))};
+    pair<string,value> partition_property_ted {make_pair(property_partition,value::string("Canada"))};
+    pair<string,value> row_property_ted {make_pair(property_row,value::string("Ted"))};
+    auth_properties_ted.push_back(password_property_ted);
+    auth_properties_ted.push_back(partition_property_ted);
+    auth_properties_ted.push_back(row_property_ted);
+    
+    vector<pair<string,value>> auth_properties_adebola;
+    pair<string,value> password_property_adebola {make_pair(property_password,value::string(standard_password))};
+    pair<string,value> partition_property_adebola {make_pair(property_partition,value::string("Canada"))};
+    pair<string,value> row_property_adebola {make_pair(property_row,value::string("Ted"))};
+    auth_properties_adebola.push_back(password_property_adebola);
+    auth_properties_adebola.push_back(partition_property_adebola);
+    auth_properties_adebola.push_back(row_property_adebola);
+
+    cout << "Adding DJ Khaled into AuthTable" << endl;
+    int put_auth_khaled {put_entity (basic_url, auth_table_name, "USA", "DJKhaled", auth_properties_khaled)};
+    cerr << "put result " << put_auth_khaled << endl;
+    if (put_auth_khaled != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Adding Ted into AuthTable" << endl;
+    int put_auth_ted {put_entity (basic_url, auth_table_name, "Canada", "Ted", auth_properties_ted)};
+    cerr << "put result " << put_auth_ted << endl;
+    if (put_auth_ted != status_codes::OK) {
+      throw std::exception();
+    }
+
+    cout << "Adding Adebola into AuthTable" << endl;
+    int add_auth_adebola {put_entity (basic_url, auth_table_name, "Canada", "Adebola", auth_properties_adebola)};
+    cerr << "put result " << add_auth_adebola << endl;
+    if (add_auth_adebola != status_codes::OK) {
+      throw std::exception();
+    }
+  }
+
+  ~SetUpFixture() {
+  }
+};
