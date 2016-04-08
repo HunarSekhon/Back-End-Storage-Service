@@ -1986,21 +1986,21 @@ public:
     auth_properties_adebola.push_back(row_property_adebola);
 
     cout << "Adding DJ Khaled into AuthTable" << endl;
-    int put_auth_khaled {put_entity (basic_url, auth_table_name, "USA", "DJKhaled", auth_properties_khaled)};
+    int put_auth_khaled {put_entity (basic_url, auth_table_name, auth_table_partition, "DJKhaled", auth_properties_khaled)};
     cerr << "put result " << put_auth_khaled << endl;
     if (put_auth_khaled != status_codes::OK) {
       throw std::exception();
     }
 
     cout << "Adding Ted into AuthTable" << endl;
-    int put_auth_ted {put_entity (basic_url, auth_table_name, "Canada", "Ted", auth_properties_ted)};
+    int put_auth_ted {put_entity (basic_url, auth_table_name, auth_table_partition, "Ted", auth_properties_ted)};
     cerr << "put result " << put_auth_ted << endl;
     if (put_auth_ted != status_codes::OK) {
       throw std::exception();
     }
 
     cout << "Adding Adebola into AuthTable" << endl;
-    int add_auth_adebola {put_entity (basic_url, auth_table_name, "Canada", "Adebola", auth_properties_adebola)};
+    int add_auth_adebola {put_entity (basic_url, auth_table_name, auth_table_partition, "Adebola", auth_properties_adebola)};
     cerr << "put result " << add_auth_adebola << endl;
     if (add_auth_adebola != status_codes::OK) {
       throw std::exception();
@@ -2027,22 +2027,40 @@ public:
   }
 
     cout << "Removing DJ Khaled from AuthTable" << endl;
-    int del_auth_khaled {delete_entity (basic_url, auth_table_name, "USA", "DJKhaled")};
+    int del_auth_khaled {delete_entity (basic_url, auth_table_name, auth_table_partition, "DJKhaled")};
     if (del_auth_khaled != status_codes::OK) {
       throw std::exception();
     }
 
     cout << "Removing Ted from AuthTable" << endl;
-    int del_auth_ted {delete_entity (basic_url, auth_table_name, "Canada", "Ted")};
+    int del_auth_ted {delete_entity (basic_url, auth_table_name, auth_table_partition, "Ted")};
     if (del_auth_ted != status_codes::OK) {
       throw std::exception();
     }
 
     cout << "Removing Adebola from AuthTable" << endl;
-    int del_auth_adebola {delete_entity (basic_url, auth_table_name, "Canada", "Adebola")};
+    int del_auth_adebola {delete_entity (basic_url, auth_table_name, auth_table_partition, "Adebola")};
     if (del_auth_adebola != status_codes::OK) {
       throw std::exception();    
     }
   }
 };
 
+/* Compile issues
+SUITE(SignOn) {
+  TEST_FIXTURE(SetUpFixture, BadSignOn) {
+    // Construct the password for the one and only DJKhaled
+    value wrong_password {build_json_object (vector<pair<string,string>> {make_pair(SetUpFixture::property_password,"ThisPasswordIsIncorrect")})};
+
+    // Request to sign on as DJKhaled with the wrong password
+    pair<status_code,value> password_res {
+      do_request (methods::POST,
+                  SetUpFixture::user_url +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  wrong_password)};
+
+    CHECK_EQUAL(status_codes::NotFound,password_res.first);
+  }
+}
+*/
