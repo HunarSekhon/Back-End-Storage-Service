@@ -2061,7 +2061,7 @@ SUITE(SignOn) {
 
     CHECK_EQUAL(status_codes::OK,password_res.first);
   }
-
+  /*
   TEST_FIXTURE(SetUpFixture, BadSignOn) {
     // Construct the password for the one and only DJKhaled
     value wrong_password {build_json_object (vector<pair<string,string>> {make_pair("Password","ThisPasswordIsIncorrect")})};
@@ -2090,7 +2090,7 @@ SUITE(SignOn) {
                   good_password)};
 
     CHECK_EQUAL(status_codes::NotFound,password_res.first);
-  }
+  }*/
 }
 
 SUITE(SignOff) {
@@ -2098,6 +2098,7 @@ SUITE(SignOff) {
     // Construct the password for the one and only DJKhaled
     value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
 
+    /*
     // Request to sign on as DJKhaled with the good password
     pair<status_code,value> s_on {
       do_request (methods::POST,
@@ -2107,18 +2108,20 @@ SUITE(SignOff) {
                   good_password)};
 
     CHECK_EQUAL(status_codes::OK,s_on.first);
-    
+    */
+
     // Sign off correctly
     pair<status_code,value> s_off {
       do_request (methods::POST,
                   "http://localhost:34572/" +
-                  sign_on_op + "/" +
+                  sign_off_op + "/" +
                   "DJKhaled",
                   good_password)};
 
     CHECK_EQUAL(status_codes::OK,s_off.first);
   }
 
+  /*
   TEST_FIXTURE(SetUpFixture, BadSignOff) {
     // Construct the password for the one and only DJKhaled
     value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
@@ -2141,6 +2144,7 @@ SUITE(SignOff) {
 
     CHECK_EQUAL(status_codes::NotFound,s_off.first);
   }
+  */
 }
 
 SUITE(AddFriend) {
@@ -2169,6 +2173,99 @@ SUITE(AddFriend) {
 
       cout << "add friend" << endl;
     CHECK_EQUAL(status_codes::OK,add_f.first);
+  }
+}
+
+SUITE(UpdateStatus) {
+  TEST_FIXTURE(SetUpFixture, GoodUpdateStatus) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the Right password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+
+    // Request to update_status
+    pair<status_code,value> up_s {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  update_status + "/" +
+                  "DJKhaled" + "/" +
+                  "lIOn")};
+
+    CHECK_EQUAL(status_codes::OK,up_s.first);
+    
+    // Request to sign off DJKhaled
+    pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off.first);
+  }
+
+  TEST_FIXTURE(SetUpFixture, ForbiddenUpdateStatus) {
+    // Request to update_status
+    pair<status_code,value> up_s {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  update_status + "/" +
+                  "DJKhaled" + "/" +
+                  "lIOn")};
+
+    CHECK_EQUAL(status_codes::Forbidden,up_s.first);
+    
+    // Request to sign off DJKhaled
+    pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off.first);
+  }
+}
+
+SUITE(PushOffUpdateStatus) {
+  TEST_FIXTURE(SetUpFixture, PushOffUpdateStatus) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the Right password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+
+    // Request to update_status
+    pair<status_code,value> up_s {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  update_status + "/" +
+                  "DJKhaled" + "/" +
+                  "lIOn")};
+
+    CHECK_EQUAL(status_codes::ServiceUnavailable,up_s.first);
+    
+    // Request to sign off DJKhaled
+    pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off.first);
   }
 }
 
@@ -2231,3 +2328,4 @@ SUITE(BLANKS) {
   }
 }
 */
+
