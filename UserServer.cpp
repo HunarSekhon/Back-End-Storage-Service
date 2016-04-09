@@ -313,7 +313,7 @@ void handle_get(http_request message) {
   cout << endl << "**** GET " << path << endl;
   auto paths = uri::split_path(path);
 
-  const string user_id {paths[0]};
+  const string user_id {paths[1]};
 
   // Cant do if (! bool online{find_user(user_id)}) so use this
   // Check if user has an active session
@@ -342,6 +342,8 @@ void handle_get(http_request message) {
     assert(user_prop.first == status_codes::OK);
 
     string friend_list {get_json_object_prop(user_prop.second, prop_friends)};  
+
+    cout << friend_list << endl;
 
     // Pair "Friends" with a string that contains the friends list then package it into a json value
     pair<string,string> new_friend_properties {make_pair (prop_friends, friend_list)};
@@ -435,6 +437,8 @@ void handle_put(http_request message) {
                                                    new_properties)};
     assert(update_properties.first == status_codes::OK);
 
+    cout << "Added " << friend_name << " from " << friend_country << endl;
+
     // Return what the PUT method gives; it should be OK and update the entity
     message.reply(update_properties.first);
     return;
@@ -472,6 +476,8 @@ void handle_put(http_request message) {
                                                        user_row,
                                                        new_properties)};
         assert(update_properties.first == status_codes::OK);
+
+        cout << "Removed " << friend_name << " from " << friend_country << endl;
 
         // Return what the PUT method gives; it should be OK and update the entity
         message.reply(update_properties.first);
