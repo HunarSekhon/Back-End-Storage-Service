@@ -61,7 +61,7 @@ const string sign_off_op {"SignOff"};
 const string add_friend_op {"AddFriend"};
 const string un_friend_op {"UnFriend"};
 const string update_status {"UpdateStatus"};
-const string read_friend_list {"ReadFriendList"};
+const string read_friend_list_op {"ReadFriendList"};
 
 /*
   Make an HTTP request, returning the status code and any JSON value in the body
@@ -2046,27 +2046,6 @@ public:
   }
 };
 
-
-/*
-  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
-    // Construct the password for the one and only DJKhaled
-    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
-
-    cout << "**T1" << endl;
-    // Request to sign on as DJKhaled with the wrong password
-    pair<status_code,value> password_res {
-      do_request (methods::POST,
-                  "http://localhost:34572/" +
-                  sign_on_op + "/" +
-                  "DJKhaled",
-                  good_password)};
-    cout << "**T2" << endl;
-
-    CHECK_EQUAL(status_codes::OK,password_res.first);
-  }
-*/
-
-//Compile issues
 SUITE(SignOn) {
   TEST_FIXTURE(SetUpFixture, GoodSignOn) {
     // Construct the password for the one and only DJKhaled
@@ -2119,24 +2098,113 @@ SUITE(SignOff) {
     // Construct the password for the one and only DJKhaled
     value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
 
-    // Request to sign on as DJKhaled with the wrong password
+    // Request to sign on as DJKhaled with the good password
     pair<status_code,value> s_on {
       do_request (methods::POST,
-                  SetUpFixture::user_url +
+                  "http://localhost:34572/" +
                   sign_on_op + "/" +
                   "DJKhaled",
                   good_password)};
 
     CHECK_EQUAL(status_codes::OK,s_on.first);
     
-    // Request to sign on as DJKhaled with the wrong password
+    // Sign off correctly
     pair<status_code,value> s_off {
       do_request (methods::POST,
-                  SetUpFixture::user_url +
-                  sign_off_op + "/" +
-                  "DJKhaled")};
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
 
     CHECK_EQUAL(status_codes::OK,s_off.first);
+  }
+
+  TEST_FIXTURE(SetUpFixture, BadSignOff) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the good password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+  // Sign off with wrong userid
+  pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJSnake")};
+
+    CHECK_EQUAL(status_codes::NotFound,s_off.first);
+  }
+}
+
+SUITE(AddFriend) {
+  TEST_FIXTURE(SetUpFixture, GoodAddFriend) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the good password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+
+    // Add Ted to DJKhaled's friend list
+    pair<status_code,value> add_f {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  add_friend_op + "/" +
+                  "DJKhaled" + "/" +
+                  "Canada" + "/" +
+                  "Ted")};
+
+      cout << "add friend" << endl;
+    CHECK_EQUAL(status_codes::OK,add_f.first);
+  }
+}
+
+SUITE(GetFriendList) {
+  TEST_FIXTURE(SetUpFixture, GoodFriendList) {
+    // Construct the password for the one and only DJKhaled
+    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+
+    // Request to sign on as DJKhaled with the good password
+    pair<status_code,value> s_on {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+
+    CHECK_EQUAL(status_codes::OK,s_on.first);
+
+    // Add Ted to DJKhaled's friend list
+    pair<status_code,value> add_f {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  add_friend_op + "/" +
+                  "DJKhaled" + "/" +
+                  "Canada" + "/" +
+                  "Ted")};
+
+    CHECK_EQUAL(status_codes::OK,add_f.first);
+
+    pair<status_code,value> read_f {
+      do_request (methods::GET,
+                  "http://localhost:34572/" +
+                  read_friend_list_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,read_f.first);
   }
 }
 
