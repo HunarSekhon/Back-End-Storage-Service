@@ -2172,6 +2172,45 @@ SUITE(AddFriend) {
   }
 }
 
+SUITE(UnFriend){
+	TEST_FIXTURE(SetUpFixture, GoodUnFriend){
+		// Construct the password for the one and only DJKhaled
+		value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
+		 // Request to sign on as DJKhaled with the wrong password
+        pair<status_code,value> s_on {
+        do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_on_op + "/" +
+                  "DJKhaled",
+                  good_password)};
+		cout<<"sign off"<<endl;
+
+        CHECK_EQUAL(status_codes::OK,s_on.first);
+		
+		pair<status_code,value>add_f{
+			do_request (methods::PUT,
+						"http://localhost:34572/" + 
+						 add_friend_op + "/" +
+						"DJKhaled" + "/" +
+						"Canada" + "/" +
+						"Ted")};
+		
+			
+			CHECK_EQUAL(status_codes::OK,add_f.first);
+
+
+		pair<status_code,value>un_f{
+			do_request (methods::PUT,
+						"http://localhost:34572/" +
+						 un_friend_op + "/" +
+						"DJKhaled" + "/" +
+						"Canada" + "/" +
+						"ted")};
+
+			CHECK_EQUAL(status_codes::OK,un_f.first);
+	}
+}
+
 SUITE(GetFriendList) {
   TEST_FIXTURE(SetUpFixture, GoodFriendList) {
     // Construct the password for the one and only DJKhaled
