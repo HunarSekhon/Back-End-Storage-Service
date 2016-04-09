@@ -2316,29 +2316,3 @@ SUITE(GetFriendList) {
     CHECK_EQUAL(status_codes::OK,s_off.first);
   }
 }
-
-
-
-/*
-SUITE(BLANKS) {
-  TEST_FIXTURE(SetUpFixture,Blank) {
-  }
-
-  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
-    // Construct the password for the one and only DJKhaled
-    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
-
-    cout << "**T1" << endl;
-    // Request to sign on as DJKhaled with the wrong password
-    pair<status_code,value> password_res {
-      do_request (methods::POST,
-                  "http://localhost:34572/" +
-                  sign_on_op + "/" +
-                  "DJKhaled",
-                  good_password)};
-    cout << "**T2" << endl;
-
-    CHECK_EQUAL(status_codes::OK,password_res.first);
-  }
-}
-*/
