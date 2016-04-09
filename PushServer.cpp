@@ -161,7 +161,7 @@ void handle_post(http_request message) {
 
   if (paths[0] == push_status_op) {
 
-    const string user_status {paths[2]};
+    const string user_status {paths[3]};
 
     // Extract info from original message to obtain the password
     unordered_map<string,string> json_body {get_json_body (message)};

@@ -438,6 +438,7 @@ void handle_put(http_request message) {
     assert(update_properties.first == status_codes::OK);
 
     cout << "Added " << friend_name << " from " << friend_country << endl;
+    cout << "New Friends Property: " << new_properties << endl;
 
     // Return what the PUT method gives; it should be OK and update the entity
     message.reply(update_properties.first);
@@ -478,6 +479,7 @@ void handle_put(http_request message) {
         assert(update_properties.first == status_codes::OK);
 
         cout << "Removed " << friend_name << " from " << friend_country << endl;
+        cout << "New Friends Property: " << new_properties << endl;
 
         // Return what the PUT method gives; it should be OK and update the entity
         message.reply(update_properties.first);
@@ -494,11 +496,12 @@ void handle_put(http_request message) {
 
   if (paths[0] == update_status_op) {
 
-    const string user_new_status {paths[1]};
+    const string user_new_status {paths[2]};
 
     // Build a new json value for the property "Status" using the edited status
     pair<string,string> new_status_properties {make_pair (prop_status, user_new_status)};
     value new_properties {build_json_value(new_status_properties)};
+    cout << "New Status Property: " << new_properties << endl;
 
     // Make a request to the BasicServer to update the property "Status" for our user
     pair<status_code,value> update_status {do_request (methods::PUT,
@@ -524,12 +527,12 @@ void handle_put(http_request message) {
                                                        user_row + "/" +
                                                        user_new_status,
                                                        users_friends_to_update)};
-    // Only return for push server is OK
-    assert(update_status.first == status_codes::OK);
-    message.reply(push_status.first);
-    return;
-
+      // Only return for push server is OK
+      assert(update_status.first == status_codes::OK);
+      message.reply(push_status.first);
+      return;
     }
+
     catch (const web::uri_exception& e) {
       cout << "PushServer error: " << e.what() << endl;
       message.reply(status_codes::ServiceUnavailable);
