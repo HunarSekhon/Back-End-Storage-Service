@@ -438,6 +438,7 @@ void handle_put(http_request message) {
     assert(update_properties.first == status_codes::OK);
 
     cout << "Added " << friend_name << " from " << friend_country << endl;
+    cout << "New Friends Property: " << new_properties << endl;
 
     // Return what the PUT method gives; it should be OK and update the entity
     message.reply(update_properties.first);
@@ -478,6 +479,7 @@ void handle_put(http_request message) {
         assert(update_properties.first == status_codes::OK);
 
         cout << "Removed " << friend_name << " from " << friend_country << endl;
+        cout << "New Friends Property: " << new_properties << endl;
 
         // Return what the PUT method gives; it should be OK and update the entity
         message.reply(update_properties.first);

@@ -2112,9 +2112,8 @@ SUITE(SignOff) {
     pair<status_code,value> s_off {
       do_request (methods::POST,
                   "http://localhost:34572/" +
-                  sign_on_op + "/" +
-                  "DJKhaled",
-                  good_password)};
+                  sign_off_op + "/" +
+                  "DJKhaled")};
 
     CHECK_EQUAL(status_codes::OK,s_off.first);
   }
@@ -2133,17 +2132,39 @@ SUITE(SignOff) {
 
     CHECK_EQUAL(status_codes::OK,s_on.first);
   // Sign off with wrong userid
-  pair<status_code,value> s_off {
+  pair<status_code,value> s_off1 {
       do_request (methods::POST,
                   "http://localhost:34572/" +
                   sign_off_op + "/" +
                   "DJSnake")};
 
-    CHECK_EQUAL(status_codes::NotFound,s_off.first);
+    CHECK_EQUAL(status_codes::NotFound,s_off1.first);
+
+    // Sign off correctly
+  pair<status_code,value> s_off2 {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off2.first);
   }
 }
 
 SUITE(AddFriend) {
+    TEST_FIXTURE(SetUpFixture, BadAddFriend) {
+    // Add friend without signing on
+    pair<status_code,value> add_f1 {
+      do_request (methods::PUT,
+                  "http://localhost:34572/" +
+                  add_friend_op + "/" +
+                  "DJKhaled" + "/" +
+                  "Canada" + "/" +
+                  "Ted")};
+
+    CHECK_EQUAL(status_codes::Forbidden,add_f1.first);
+  }
+
   TEST_FIXTURE(SetUpFixture, GoodAddFriend) {
     // Construct the password for the one and only DJKhaled
     value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
@@ -2167,8 +2188,16 @@ SUITE(AddFriend) {
                   "Canada" + "/" +
                   "Ted")};
 
-      cout << "add friend" << endl;
     CHECK_EQUAL(status_codes::OK,add_f.first);
+
+    // Sign off correctly
+    pair<status_code,value> s_off {
+      do_request (methods::POST,
+                  "http://localhost:34572/" +
+                  sign_off_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::OK,s_off.first);
   }
 }
 
@@ -2212,6 +2241,17 @@ SUITE(UnFriend){
 }
 
 SUITE(GetFriendList) {
+  TEST_FIXTURE(SetUpFixture, BadFriendList) {
+    // Read friend list without signing on
+    pair<status_code,value> read_f {
+      do_request (methods::GET,
+                  "http://localhost:34572/" +
+                  read_friend_list_op + "/" +
+                  "DJKhaled")};
+
+    CHECK_EQUAL(status_codes::Forbidden,read_f.first);
+  }
+
   TEST_FIXTURE(SetUpFixture, GoodFriendList) {
     // Construct the password for the one and only DJKhaled
     value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
@@ -2244,29 +2284,14 @@ SUITE(GetFriendList) {
                   "DJKhaled")};
 
     CHECK_EQUAL(status_codes::OK,read_f.first);
-  }
-}
-
-/*
-SUITE(BLANKS) {
-  TEST_FIXTURE(SetUpFixture,Blank) {
-  }
-
-  TEST_FIXTURE(SetUpFixture, GoodSignOn) {
-    // Construct the password for the one and only DJKhaled
-    value good_password {build_json_object (vector<pair<string,string>> {make_pair("Password","password")})};
-
-    cout << "**T1" << endl;
-    // Request to sign on as DJKhaled with the wrong password
-    pair<status_code,value> password_res {
+    
+    // Sign off correctly
+    pair<status_code,value> s_off {
       do_request (methods::POST,
                   "http://localhost:34572/" +
-                  sign_on_op + "/" +
-                  "DJKhaled",
-                  good_password)};
-    cout << "**T2" << endl;
+                  sign_off_op + "/" +
+                  "DJKhaled")};
 
-    CHECK_EQUAL(status_codes::OK,password_res.first);
+    CHECK_EQUAL(status_codes::OK,s_off.first);
   }
 }
-*/
